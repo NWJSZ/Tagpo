@@ -21,7 +21,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $_SESSION['last_activity'] = time();
         // Set cookie for 7 days
         setcookie('user_session', $admin['email'], time() + (60 * 60 * 24 * 7), '/');
-        header("Location: ../index.php");
+        header("Location: " . getBaseUrl() . "index.php");
         exit();
     }
 
@@ -40,7 +40,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if ($found) {
         // Set cookie for 7 days
         setcookie('user_session', $_SESSION['current_user']['email'], time() + (60 * 60 * 24 * 7), '/');
-        header("Location: ../index.php");
+        header("Location: " . getBaseUrl() . "index.php");
         exit();
     } else {
         $error = "Invalid email or password!";

@@ -1,8 +1,6 @@
 <?php
-// Include session configuration if not already started
-if (session_status() === PHP_SESSION_NONE) {
-    require_once dirname(__DIR__) . '/config/session_config.php';
-}
+// Always include session config so helper functions are defined
+require_once dirname(__DIR__) . '/config/session_config.php';
 
 $baseUrl = isset($baseUrl) ? $baseUrl : '';
 $current = basename($_SERVER['PHP_SELF']);

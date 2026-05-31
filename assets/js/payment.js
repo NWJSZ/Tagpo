@@ -53,6 +53,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     methodSelect.addEventListener('change', togglePaymentFields);
 
+    // Backwards-compatible alias used in some templates
+    function updatePaymentFields() { togglePaymentFields(); }
+
     /* =========================
        CARD NUMBER MASKING
     ========================= */

@@ -148,12 +148,18 @@ $methodMsg = "";
 ========================================= */
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['pay_now'])) {
 
-    $firstName = $_POST['first_name'];
-    $lastName  = $_POST['last_name'];
-    $email     = $_POST['email'];
-    $method    = $_POST['method'];
+    $firstName = trim($_POST['first_name'] ?? '');
+    $lastName  = trim($_POST['last_name'] ?? '');
+    $email     = trim($_POST['email'] ?? '');
+    $phone     = trim($_POST['phone'] ?? '');
+    $method    = $_POST['method'] ?? 'card';
     
+    if (empty($phone)) {
+        die("Phone number is required.");
+    }
+
     // Validate based on payment method
+    $cardRaw = '';
     if ($method === 'card') {
         $cardRaw = $_POST['card_number'] ?? '';
         $card = str_replace(' ', '', $cardRaw);
@@ -203,6 +209,32 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['pay_now'])) {
         "card" => ($method === "card") ? $payment->getCardLast4() : null,
         "method" => $methodMsg
     ];
+
+    $_SESSION['receipt_data'] = [
+        'invoice_number' => strtoupper(uniqid('TP-')),
+        'customer_name' => $customerName,
+        'first_name' => $firstName,
+        'last_name' => $lastName,
+        'email' => $email,
+        'phone' => $phone,
+        'venue_name' => $venueName,
+        'venue_price' => $venuePrice,
+        'event_type' => $eventType,
+        'event_date' => $eventDate,
+        'event_time' => $eventTime,
+        'duration' => $duration,
+        'guest_count' => $guestCount,
+        'addons' => $addons,
+        'fee_labels' => $feeLabels,
+        'fees' => $fees,
+        'total' => $total,
+        'payment_method' => $methodMsg,
+        'card_last4' => ($method === 'card') ? $payment->getCardLast4() : null,
+        'timestamp' => time()
+    ];
+
+    header('Location: ' . getBaseUrl() . 'receipt.php');
+    exit();
 }
 ?>
 
@@ -268,6 +300,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['pay_now'])) {
           <?php if (!empty($_SESSION['payment']['card'])): ?>
             <small>Card ending in: ****<?= $_SESSION['payment']['card']; ?></small>
           <?php endif; ?>
+
+          <div class="mt-3">
+            <a href="<?= htmlspecialchars(getBaseUrl() . 'receipt.php'); ?>" class="btn btn-outline-primary btn-sm">View Receipt</a>
+          </div>
         </div>
       <?php endif; ?>
     </div>

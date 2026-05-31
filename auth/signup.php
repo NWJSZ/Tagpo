@@ -33,7 +33,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Set cookie for 7 days
     setcookie('user_session', $email, time() + (60 * 60 * 24 * 7), '/');
 
-    header('Location: ../index.php');
+    header('Location: ' . getBaseUrl() . 'index.php');
     exit();
 }
 ?>
