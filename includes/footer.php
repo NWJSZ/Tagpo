@@ -37,8 +37,6 @@
         <h6>Company</h6>
         <ul class="list-unstyled">
           <li><a href="#">About Us</a></li>
-          <li><a href="#">Blog</a></li>
-          <li><a href="#">Careers</a></li>
           <li><a href="#">List Your Venue</a></li>
           <li><a href="#">Contact Us</a></li>
         </ul>

@@ -336,16 +336,16 @@ if (!empty($location)) {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-// Show alert after 60 seconds when session expires
+
 <?php if(isset($_SESSION['current_user']) && !isset($sessionExpired)): ?>
     setTimeout(function() {
         // Clear wishlist from storage
         localStorage.removeItem('tagpo_wishlist');
 
         // Show alert and reload to show the expired message
-        alert('Your session has expired after 60 seconds. Please log in again.');
+        alert('Your session has expired after 64 seconds. Please log in again.');
         window.location.reload();//test
-    }, 60000); // 60 seconds
+    }, 64000);
 <?php endif; ?>
 </script>
 
