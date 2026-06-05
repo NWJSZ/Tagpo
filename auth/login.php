@@ -11,33 +11,23 @@ $admin = [
 
 $error = "";
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $email = trim($_POST['email']);
-    $password = $_POST['password'];
+    $email = trim($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
+    $found = false;
 
-    // Validate email format
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = "Invalid email format!";
     }
 
-    // Validate password strength in signup
-    if (strlen($password) < 6) {
-        $error = "Password must be at least 6 characters!";
-    }
-    $password = $_POST['password'];
-    $found = false;
-
-    // Check against Admin
-    if ($email == $admin['email'] && $password == $admin['password']) {
+    if (!$error && $email == $admin['email'] && $password == $admin['password']) {
         $_SESSION['current_user'] = $admin;
         $_SESSION['last_activity'] = time();
-        // Set cookie for 7 days
         setcookie('user_session', $admin['email'], time() + (60 * 60 * 24 * 7), '/');
         header("Location: " . getBaseUrl() . "index.php");
         exit();
     }
 
-    // Check against registered session users
-    if (isset($_SESSION['users'])) {
+    if (!$error && isset($_SESSION['users'])) {
         foreach ($_SESSION['users'] as $user) {
             if ($user['email'] == $email && $user['password'] == $password) {
                 $found = true;
@@ -49,11 +39,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 
     if ($found) {
-        // Set cookie for 7 days
         setcookie('user_session', $_SESSION['current_user']['email'], time() + (60 * 60 * 24 * 7), '/');
         header("Location: " . getBaseUrl() . "index.php");
         exit();
-    } else {
+    } elseif (!$error) {
         $error = "Invalid email or password!";
     }
 }
@@ -73,82 +62,97 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 </head>
 
 <body>
+    <div class="auth-wrap">
+        <div class="auth-panel-left">
+            <div class="brand">TAGPO<span>.</span></div>
 
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-md-6 col-lg-5 col-xl-4">
-
-                <div class="text-center mb-4 fade-up">
-                    <h1 class="brand-font fw-bold text-gold"" style=" font-size: 2.5rem;">TAGPO<span class="text-gold">.</span></h1>
+            <div class="auth-tagline">
+                <h2>Capturing Moments,<br>Creating Memories</h2>
+                <p>
+                    From coast-side weddings to rooftop galas, find your perfect venue
+                    and bring your celebration to life.
+                </p>
+                <div class="auth-dots">
+                    <span></span><span></span><span></span>
                 </div>
+            </div>
 
-                <div class="card shadow-lg p-4 fade-up-1">
-                    <div class="login-body">
-                        <div class="text-center mb-4">
-                            <h3 class="fw-bold mb-1">Welcome Back</h3>
-                            <p class="text-muted small">Sign in to manage your bookings</p>
-                        </div>
+            <div style="font-size: 0.78rem; color: rgba(255,255,255,.3);">
+                &copy; 2026 TAGPO Luxury Venues
+            </div>
+        </div>
 
-                        <?php if (isset($_GET['status']) && $_GET['status'] == 'registered'): ?>
-                            <div class="alert alert-success alert-custom mb-4">
-                                <i class="fa-solid fa-circle-check me-2"></i> Account created! Please login.
-                            </div>
-                        <?php endif; ?>
+        <div class="auth-panel-right">
+            <div class="tab-switcher">
+                <button type="button" class="tab-btn active">Sign In</button>
+                <button type="button" class="tab-btn" onclick="window.location.href='signup.php'">Sign Up</button>
+            </div>
 
-                        <?php if (isset($_GET['status']) && $_GET['status'] == 'logged_out'): ?>
-                            <div class="alert alert-info alert-custom mb-4">
-                                <i class="fa-solid fa-circle-info me-2"></i> Session expired. Please sign in again.
-                            </div>
-                        <?php endif; ?>
+            <div class="auth-form">
+                <p class="auth-heading">Welcome back</p>
+                <p class="auth-subheading">Sign in to manage your bookings</p>
 
-                        <?php if ($error): ?>
-                            <div class="alert alert-danger alert-custom mb-4">
-                                <i class="fa-solid fa-triangle-exclamation me-2"></i> <?php echo $error; ?>
-                            </div>
-                        <?php endif; ?>
+                <?php if (isset($_GET['status']) && $_GET['status'] == 'registered'): ?>
+                    <div class="auth-alert" style="background:rgba(16,185,129,.12); border-color:rgba(16,185,129,.25); color:#6ee7b7;">
+                        <i class="fa-solid fa-circle-check me-2"></i> Account created! Please sign in.
+                    </div>
+                <?php endif; ?>
 
-                        <form method="POST">
-                            <div class="mb-3">
-                                <label class="form-label small fw-bold text-uppercase" style="letter-spacing: 0.5px;">Email Address</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0"><i class="fa-regular fa-envelope text-muted"></i></span>
-                                    <input type="email" name="email" class="form-control border-start-0" placeholder="name@example.com" required>
-                                </div>
-                            </div>
+                <?php if (isset($_GET['status']) && $_GET['status'] == 'logged_out'): ?>
+                    <div class="auth-alert" style="background:rgba(59,130,246,.12); border-color:rgba(59,130,246,.25); color:#93c5fd;">
+                        <i class="fa-solid fa-circle-info me-2"></i> You have been logged out.
+                    </div>
+                <?php endif; ?>
 
-                            <div class="mb-4">
-                                <div class="d-flex justify-content-between">
-                                    <label class="form-label small fw-bold text-uppercase" style="letter-spacing: 0.5px;">Password</label>
-                                </div>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-lock text-muted"></i></span>
-                                    <input type="password" name="password" class="form-control border-start-0" placeholder="••••••••" required>
-                                </div>
-                            </div>
+                <?php if ($error): ?>
+                    <div class="auth-alert">
+                        <i class="fa-solid fa-triangle-exclamation me-2"></i> <?php echo htmlspecialchars($error); ?>
+                    </div>
+                <?php endif; ?>
 
-                            <button type="submit" class="btn btn-book w-100 py-3 mb-3">
-                                Sign In
-                            </button>
-                        </form>
-
-                        <div class="text-center mt-3">
-                            <p class="small text-muted">
-                                New to TAGPO?
-                                <a href="signup.php" class="text-accent fw-bold text-decoration-none">Create an account</a>
-                            </p>
+                <form method="POST">
+                    <div class="mb-3">
+                        <label class="auth-label">Email Address</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fa-regular fa-envelope"></i></span>
+                            <input type="email" name="email" class="form-control" placeholder="name@example.com" value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>" required>
                         </div>
                     </div>
+
+                    <div class="mb-3">
+                        <label class="auth-label">Password</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fa-solid fa-lock"></i></span>
+                            <input type="password" name="password" id="pw-login" class="form-control" placeholder="Password" required>
+                            <button type="button" class="input-group-text auth-password-toggle" onclick="togglePwd('pw-login', this)">
+                                <i class="fa-regular fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-auth-submit">
+                        Sign In <i class="fa-solid fa-arrow-right ms-2"></i>
+                    </button>
+                </form>
+
+                <div class="auth-divider">
+                    <hr><span>Or continue with</span><hr>
                 </div>
 
-                <p class="text-center mt-4 small text-muted fade-up-2">
-                    &copy; 2026 TAGPO Luxury Venues. All rights reserved.
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn-social"><i class="fab fa-google"></i> Google</button>
+                    <button type="button" class="btn-social"><i class="fab fa-apple"></i> Apple</button>
+                </div>
+
+                <p class="auth-switch">
+                    New to TAGPO? <a href="signup.php">Create an account</a>
                 </p>
             </div>
         </div>
     </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../assets/js/loginsignup.js"></script>
-
 </body>
 
 </html>

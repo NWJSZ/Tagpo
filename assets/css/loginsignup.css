@@ -168,6 +168,16 @@ body {
   border-radius: 0 var(--radius) var(--radius) 0 !important;
 }
 
+.auth-panel-right .input-group .form-control:has(+ .auth-password-toggle) {
+  border-radius: 0 !important;
+}
+
+.auth-panel-right .auth-password-toggle {
+  border-left: none;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  cursor: pointer;
+}
+
 .auth-panel-right .input-group:focus-within .input-group-text {
   border-color: var(--accent);
   color: rgba(255, 255, 255, .7);

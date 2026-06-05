@@ -70,17 +70,18 @@ if (!isset($_SESSION['cart'])) {
 // HELPER FUNCTION: Get base URL
 // ========================================
 function getBaseUrl() {
-    $path = dirname($_SERVER['PHP_SELF']);
-    if ($path === '/' || $path === '\\') {
-        return '/Tagpo/';
+    $docRoot = str_replace('\\', '/', $_SERVER['DOCUMENT_ROOT']);
+    $scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_FILENAME']));
+    $relativePath = str_replace($docRoot, '', $scriptDir);
+
+    // Auth/admin/config live below the project root, but redirects should not.
+    $relativePath = preg_replace('#/(auth|admin|config)/?$#', '', $relativePath);
+
+    if ($relativePath === '' || $relativePath === '/') {
+        return '/';
     }
-    
-    // Remove /config from path if present
-    if (strpos($path, '/config') !== false) {
-        $path = str_replace('/config', '', $path);
-    }
-    
-    return rtrim($path, '/') . '/';
+
+    return rtrim($relativePath, '/') . '/';
 }
 
 // ========================================
