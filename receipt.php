@@ -18,8 +18,17 @@ $issuedAt = date('F j, Y \a\t g:i A', $receipt['timestamp']);
   <title>Receipt | Tagpo</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="assets/css/styles.css" />
+
+  <!--jspdf library-->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- html2canvas -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
   <style>
-    .receipt-card { max-width: 900px; margin: 2rem auto; }
+    html, body { background: #fff !important; }
+    main.receipt-card, .receipt-card { max-width: 900px; margin: 2rem auto; background: #fff !important; }
+    .receipt-card .card, .receipt-card .card-body { background: #fff !important; border: none; }
+    .receipt-card .card { box-shadow: none !important; }
     .receipt-badge { font-size: 0.85rem; }
     @media print {
       .no-print { display: none !important; }
@@ -116,8 +125,9 @@ $issuedAt = date('F j, Y \a\t g:i A', $receipt['timestamp']);
         </div>
       </div>
 
-      <div class="d-flex justify-content-between align-items-center gap-3 no-print">
+      <div class="d-flex justify-content-between align-items-center gap-3 no-print" data-html2canvas-ignore="true">
         <a href="payment.php" class="btn btn-secondary">Back to Payment</a>
+        <button type="button" class="btn btn-outline-secondary" onclick="window.downloadreceipt();">Download PDF</button>
         <button type="button" class="btn btn-primary" onclick="window.print();">Print Receipt</button>
       </div>
     </div>
@@ -125,6 +135,34 @@ $issuedAt = date('F j, Y \a\t g:i A', $receipt['timestamp']);
 </main>
 
 <?php include 'includes/footer.php'; ?>
+
+<!-- Download Receipt function -->
+<script>
+  window.downloadreceipt = function() {
+    const { jsPDF } = window.jspdf;
+
+    html2canvas(document.querySelector('.receipt-card'), {
+      backgroundColor: '#fff',
+      scale: 2,
+      useCORS: true,
+    }).then(canvas => {
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save("receipt-<?= htmlspecialchars($receipt['invoice_number']); ?>.pdf");
+    });
+  }
+</script>
+
+
+
+
+
+
 
 </body>
 </html>

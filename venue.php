@@ -375,7 +375,7 @@ function stars(float $rating): string {
 
             <div class="form-group">
               <label>Event Date</label>
-              <input type="date" class="form-control" name="event_date" required />
+              <input type="date" class="form-control" name="event_date" id="event_date" min="<?php echo date('Y-m-d'); ?>" required />
             </div>
 
             <div class="form-row">
@@ -626,8 +626,45 @@ function stars(float $rating): string {
   // Close lightbox when clicking the X button
   document.querySelector('.lightbox-close')?.addEventListener('click', closeLightbox);
 
+  // Initialize date input with minimum date (today)
+  function initDatePicker() {
+    const dateInput = document.getElementById('event_date');
+    if (dateInput) {
+      const today = new Date();
+      const minDate = today.toISOString().split('T')[0];
+      dateInput.setAttribute('min', minDate);
+      
+      // Validate on change to prevent past dates
+      dateInput.addEventListener('change', function() {
+        const selectedDate = new Date(this.value);
+        const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        
+        if (selectedDate < todayDate) {
+          alert('⚠️ Past dates are not allowed. Please select today or a future date.');
+          this.value = '';
+        }
+      });
+      
+      // Prevent typing past dates
+      dateInput.addEventListener('blur', function() {
+        if (this.value) {
+          const selectedDate = new Date(this.value);
+          const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+          
+          if (selectedDate < todayDate) {
+            alert('⚠️ Past dates are not allowed. Please select today or a future date.');
+            this.value = '';
+          }
+        }
+      });
+    }
+  }
+
   // Initialize on page load
-  document.addEventListener('DOMContentLoaded', initWishlist);
+  document.addEventListener('DOMContentLoaded', function() {
+    initWishlist();
+    initDatePicker();
+  });
 </script>
 
 <style>

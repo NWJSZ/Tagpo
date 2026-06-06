@@ -388,6 +388,33 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['pay_now'])) {
             <div class="mb-3">
               <label class="form-label">GCash Number</label>
               <input type="text" name="gcash_number" id="gcash_number" class="form-control" placeholder="09XX XXX XXXX">
+              <script>
+                const gcashInput = document.getElementById("gcash_number");
+
+                gcashInput.addEventListener("input", function() {
+                // alisin lahat ng non-numeric
+                let value = this.value.replace(/\D/g, '');
+
+               // limit sa 11 digits
+               if (value.length > 11) {
+               value = value.slice(0, 11);
+             }
+
+              // format: 09XX XXX XXXX
+              let formatted = '';
+              if (value.length > 0) {
+              formatted = value.substring(0, 4);
+             }
+              if (value.length > 4) {
+              formatted += ' ' + value.substring(4, 7);
+            }
+              if (value.length > 7) {
+              formatted += ' ' + value.substring(7, 11);
+         }
+
+              this.value = formatted;
+      });
+       </script>
             </div>
           </div>
 
