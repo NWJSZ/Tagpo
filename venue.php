@@ -45,6 +45,33 @@ function stars(float $rating): string {
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" />
   <link rel="stylesheet" href="assets/css/styles.css" />
+  <style>
+    /* Styling for add-on options */
+    .addon-group-item {
+      padding: 6px 10px;
+      margin-bottom: 5px;
+      background: rgba(0, 0, 0, 0.02);
+      border-radius: 6px;
+      transition: background 0.2s ease;
+    }
+    .addon-group-item:hover {
+      background: rgba(0, 0, 0, 0.05);
+    }
+    .addon-group-item input[type="checkbox"] {
+      margin-right: 8px;
+      cursor: pointer;
+    }
+    .addon-group-item label {
+      cursor: pointer;
+      font-weight: normal;
+      width: 100%;
+      margin-bottom: 0;
+    }
+    @keyframes slideOutRight {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(400px); opacity: 0; }
+    }
+  </style>
 </head>
 
 <body>
@@ -53,7 +80,6 @@ function stars(float $rating): string {
 
   <?php if ($selected): ?>
 
-    <!-- BREADCRUMB -->
     <div class="breadcrumb-bar">
       <div class="container d-flex align-items-center gap-3">
 
@@ -72,7 +98,6 @@ function stars(float $rating): string {
       </div>
     </div>
 
-    <!-- TAB BAR -->
     <div class="tab-bar">
       <div class="tab active" onclick="setTab(this)">Photos</div>
       <div class="tab" onclick="scrollToSection(about)">About</div>
@@ -81,7 +106,6 @@ function stars(float $rating): string {
       <div class="tab" onclick="scrollToSection(reviews)">Reviews</div>
     </div>
 
-    <!-- GALLERY -->
     <div class="gallery-grid">
       <?php foreach ($selected['gallery'] as $image): ?>
         <div class="gallery-img" data-src="<?php echo htmlspecialchars($image['src']); ?>" onclick="openLightbox(this.dataset.src)">
@@ -90,7 +114,6 @@ function stars(float $rating): string {
       <?php endforeach; ?>
     </div>
 
-    <!-- LIGHTBOX MODAL -->
     <div id="lightbox" class="lightbox" onclick="closeLightbox(event)">
       <div class="lightbox-content">
         <button class="lightbox-close" type="button" aria-label="Close">&times;</button>
@@ -100,10 +123,8 @@ function stars(float $rating): string {
       </div>
     </div>
 
-    <!-- MAIN CONTENT -->
     <div class="main-wrap">
 
-      <!-- LEFT COLUMN -->
       <div>
 
         <h1 class="venue-title"><?php echo htmlspecialchars($selected['name']); ?></h1>
@@ -115,7 +136,6 @@ function stars(float $rating): string {
           <span class="venue-badge-inline">⚡ Responds within <?php echo htmlspecialchars($selected['response']); ?></span>
         </div>
 
-        <!-- WHY THIS VENUE -->
         <div class="why-card">
           <h4>Why This Venue</h4>
           <ul class="why-list">
@@ -128,7 +148,6 @@ function stars(float $rating): string {
           </ul>
         </div>
 
-        <!-- CAPACITY -->
         <div class="capacity-row" id="capacity">
           <div class="cap-card">
             <div class="cap-icon">🪑</div>
@@ -151,13 +170,11 @@ function stars(float $rating): string {
           </div>
         </div>
 
-        <!-- ABOUT -->
         <div class="section" id="about">
           <div class="section-title">About This Venue</div>
           <p><?php echo htmlspecialchars($selected['desc']); ?></p>
         </div>
 
-        <!-- AMENITIES -->
         <div class="section" id="amenities">
           <div class="section-title">Amenities &amp; Features</div>
           <div class="amenities-grid">
@@ -170,7 +187,6 @@ function stars(float $rating): string {
           </div>
         </div>
 
-        <!-- LOCATION -->
         <div class="section" id="location">
           <div class="section-title">Location</div>
           <div class="map-placeholder">
@@ -179,7 +195,6 @@ function stars(float $rating): string {
           <p class="map-sub">📍 <?php echo htmlspecialchars($selected['location']); ?>, Philippines</p>
         </div>
 
-        <!-- REVIEWS -->
         <div class="section" id="reviews">
           <div class="section-title">Guest Reviews</div>
           <div class="review-summary">
@@ -209,17 +224,13 @@ function stars(float $rating): string {
           <?php endforeach; ?>
         </div>
 
-      </div><!-- /left column -->
-
-      <!-- RIGHT COLUMN: BOOKING CARD -->
-      <div>
+      </div><div>
         <div class="booking-card">
           <h3>₱<?php echo number_format($selected['price']); ?></h3>
           <div class="price-sub">Starting package · Prices vary by event type</div>
 
           <div class="form-tabs">
             <div class="form-tab active" onclick="switchTab(this)">Event Information </div>
-            <!-- <div class="form-tab" onclick="switchTab(this)">Your Details 📌</div> -->
           </div>
 
           <form action="add_to_cart.php" method="POST">
@@ -238,12 +249,12 @@ function stars(float $rating): string {
               <label>Event Type</label>
               <select class="form-control" name="event_type" required>
                 <option value="">Search Event Type</option>
-                <option>Wedding</option>
-                <option>Birthday / Debut</option>
-                <option>Prom / Ball</option>
-                <option>Corporate Event</option>
-                <option>Reunion</option>
-                <option>Anniversary</option>
+                <option value="Wedding">Wedding</option>
+                <option value="Birthday / Debut">Birthday / Debut</option>
+                <option value="Prom / Ball">Prom / Ball</option>
+                <option value="Corporate Event">Corporate Event</option>
+                <option value="Reunion">Reunion</option>
+                <option value="Anniversary">Anniversary</option>
               </select>
             </div>
 
@@ -292,26 +303,98 @@ function stars(float $rating): string {
             </div>
 
             <div class="form-group">
-              <label>Add-ons</label>
+              <label class="d-block mb-2">Add-ons</label>
 
-              <div class="addon-item">
-                <input type="checkbox" name="addons[]" value="Catering">
-                Catering Service (+₱5,000)
+              <div id="no-event-message" class="text-muted small">Please select an event type to view available add-ons.</div>
+
+              <div class="addon-group-item wedding-addon" data-event="Wedding" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="Catering Service"> Catering Service (+₱8,000)</label>
+              </div>
+              <div class="addon-group-item wedding-addon" data-event="Wedding" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="Bridal Car"> Bridal Car (+₱3,500)</label>
+              </div>
+              <div class="addon-group-item wedding-addon" data-event="Wedding" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="Floral Arrangement Package"> Floral Arrangement Package (+₱2,500)</label>
+              </div>
+              <div class="addon-group-item wedding-addon" data-event="Wedding" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="Wedding Stage Decoration"> Wedding Stage Decoration (+₱4,000)</label>
+              </div>
+              <div class="addon-group-item wedding-addon" data-event="Wedding" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="Photo Booth"> Photo Booth (+₱2,500)</label>
               </div>
 
-              <div class="addon-item">
-                <input type="checkbox" name="addons[]" value="Photo Booth">
-                Photo Booth (+₱3,000)
+              <div class="addon-group-item birthday-addon" data-event="Birthday / Debut" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="Catering Service"> Catering Service (+₱6,000)</label>
+              </div>
+              <div class="addon-group-item birthday-addon" data-event="Birthday / Debut" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="Balloon & Themed Setup"> Balloon & Themed Setup (+₱2,000)</label>
+              </div>
+              <div class="addon-group-item birthday-addon" data-event="Birthday / Debut" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="Photo Booth"> Photo Booth (+₱2,500)</label>
+              </div>
+              <div class="addon-group-item birthday-addon" data-event="Birthday / Debut" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="Clown / Event Host"> Clown / Event Host (+₱1,500)</label>
+              </div>
+              <div class="addon-group-item birthday-addon" data-event="Birthday / Debut" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="Cake Styling Setup"> Cake Styling Setup (+₱1,000)</label>
               </div>
 
-              <div class="addon-item wedding-addon">
-                <input type="checkbox" name="addons[]" value="Bridal Car">
-                Bridal Car (+₱8,000)
+              <div class="addon-group-item prom-addon" data-event="Prom / Ball" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="DJ Booth"> DJ Booth (+₱3,000)</label>
+              </div>
+              <div class="addon-group-item prom-addon" data-event="Prom / Ball" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="LED Lights Setup"> LED Lights Setup (+₱2,500)</label>
+              </div>
+              <div class="addon-group-item prom-addon" data-event="Prom / Ball" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="Red Carpet Entrance Setup"> Red Carpet Entrance Setup (+₱1,500)</label>
+              </div>
+              <div class="addon-group-item prom-addon" data-event="Prom / Ball" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="Photo Booth"> Photo Booth (+₱2,500)</label>
+              </div>
+              <div class="addon-group-item prom-addon" data-event="Prom / Ball" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="Emcee / Host"> Emcee / Host (+₱2,000)</label>
               </div>
 
-              <div class="addon-item prom-addon">
-                <input type="checkbox" name="addons[]" value="DJ Booth">
-                DJ Booth (+₱4,000)
+              <div class="addon-group-item corporate-addon" data-event="Corporate Event" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="Projector & Screen Setup"> Projector & Screen Setup (+₱2,000)</label>
+              </div>
+              <div class="addon-group-item corporate-addon" data-event="Corporate Event" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="Sound System"> Sound System (+₱3,000)</label>
+              </div>
+              <div class="addon-group-item corporate-addon" data-event="Corporate Event" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="Microphones & Stage Setup"> Microphones & Stage Setup (+₱2,500)</label>
+              </div>
+              <div class="addon-group-item corporate-addon" data-event="Corporate Event" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="Coffee Break Catering"> Coffee Break Catering (+₱5,000)</label>
+              </div>
+              <div class="addon-group-item corporate-addon" data-event="Corporate Event" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="LED Display Wall"> LED Display Wall (+₱8,000)</label>
+              </div>
+
+              <div class="addon-group-item reunion-addon" data-event="Reunion" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="Buffet Catering"> Buffet Catering (+₱7,000)</label>
+              </div>
+              <div class="addon-group-item reunion-addon" data-event="Reunion" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="Photo Booth"> Photo Booth (+₱2,500)</label>
+              </div>
+              <div class="addon-group-item reunion-addon" data-event="Reunion" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="Memory Slideshow / Projector"> Memory Slideshow / Projector (+₱1,500)</label>
+              </div>
+              <div class="addon-group-item reunion-addon" data-event="Reunion" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="Event Host / Emcee"> Event Host / Emcee (+₱2,000)</label>
+              </div>
+
+              <div class="addon-group-item anniversary-addon" data-event="Anniversary" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="Romantic Venue Styling"> Romantic Venue Styling (+₱3,000)</label>
+              </div>
+              <div class="addon-group-item anniversary-addon" data-event="Anniversary" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="Floral Arrangement Package"> Floral Arrangement Package (+₱2,000)</label>
+              </div>
+              <div class="addon-group-item anniversary-addon" data-event="Anniversary" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="Candle & Lights Setup"> Candle & Lights Setup (+₱1,500)</label>
+              </div>
+              <div class="addon-group-item anniversary-addon" data-event="Anniversary" style="display: none;">
+                <label><input type="checkbox" name="addons[]" value="Live Acoustic Music"> Live Acoustic Music (+₱5,000)</label>
               </div>
             </div>
 
@@ -319,40 +402,36 @@ function stars(float $rating): string {
               Add to Cart
             </button>
 
-          <button class="btn-wishlist">♡ Save to Wishlist</button>
-          <div class="free-note">✓ Free to enquire — no booking fees</div>
+            <button type="button" class="btn-wishlist">♡ Save to Wishlist</button>
+            <div class="free-note">✓ Free to enquire — no booking fees</div>
 
-          <hr class="divider" />
-          <div class="card-footer-links">
-            <a href="#">🛡️ Secure booking</a>
-            <a href="#">💬 Chat with venue</a>
-            <a href="#">📋 View packages</a>
-          </div>
+            <hr class="divider" />
+            <div class="card-footer-links">
+              <a href="#">🛡️ Secure booking</a>
+              <a href="#">💬 Chat with venue</a>
+              <a href="#">📋 View packages</a>
+            </div>
+          </form>
         </div>
-      </div><!-- /right column -->
+      </div><?php else: ?>
 
-    <?php else: ?>
-
-      <!-- VENUE NOT FOUND -->
       <div class="not-found">
         <h2>Venue Not Found</h2>
         <p>The venue you're looking for doesn't exist or may have been removed.</p>
         <a href="index.php">← Back to all venues</a>
       </div>
-    </div>
+    <?php endif; ?>
 
-  <?php endif; ?>
-
-  </div><!-- /main wrap -->
-
-  <?php include 'includes/footer.php'; ?>
+  </div><?php include 'includes/footer.php'; ?>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
   // Initialize wishlist button state
   function initWishlist() {
-    const venueId = <?php echo $selected['id']; ?>;
+    const venueId = <?php echo isset($selected['id']) ? $selected['id'] : 0; ?>;
     const wishlistBtn = document.querySelector('.btn-wishlist');
+    if (!wishlistBtn) return;
+    
     const wishlist = JSON.parse(localStorage.getItem('tagpo_wishlist')) || [];
     
     if (wishlist.includes(venueId)) {
@@ -365,32 +444,26 @@ function stars(float $rating): string {
 
   function toggleWishlist() {
     const venueId = <?php echo isset($selected['id']) ? $selected['id'] : 0; ?>;
-    const venueName = '<?php echo htmlspecialchars($selected['name']); ?>';
+    const venueName = '<?php echo htmlspecialchars($selected['name'] ?? ""); ?>';
     const wishlistBtn = document.querySelector('.btn-wishlist');
     
     wishlistBtn.classList.add('loading');
     
-    // Get current wishlist
     let wishlist = JSON.parse(localStorage.getItem('tagpo_wishlist')) || [];
-    let isAdded = false;
     
     setTimeout(() => {
       if (wishlist.includes(venueId)) {
-        // Remove from wishlist
         wishlist = wishlist.filter(id => id !== venueId);
         showToast('Removed from wishlist', false);
         wishlistBtn.innerHTML = '♡ Save to Wishlist';
         wishlistBtn.classList.remove('active');
       } else {
-        // Add to wishlist
         wishlist.push(venueId);
-        isAdded = true;
         showToast(venueName + ' saved to wishlist!', true);
         wishlistBtn.innerHTML = '♥ Saved to Wishlist';
         wishlistBtn.classList.add('active');
       }
       
-      // Save to localStorage
       localStorage.setItem('tagpo_wishlist', JSON.stringify(wishlist));
       wishlistBtn.classList.remove('loading');
     }, 300);
@@ -420,6 +493,7 @@ function stars(float $rating): string {
   
   function adjustGuests(delta) {
     const input = document.getElementById('guestCount');
+    if (!input) return;
     const val   = parseInt(input.value) + delta;
     input.value = Math.max(50, Math.min(parseInt(input.max), val));
   }
@@ -446,25 +520,19 @@ function stars(float $rating): string {
     const lightbox = document.getElementById('lightbox');
     const lightboxImg = document.getElementById('lightboxImg');
     
-    // Get all gallery images
     galleryImages = Array.from(document.querySelectorAll('.gallery-img')).map(el => el.dataset.src);
-    
-    // Find current image index
     currentImageIndex = galleryImages.indexOf(src);
     
     lightboxImg.src = src;
     lightbox.classList.add('show');
-    document.body.style.overflow = 'hidden'; // Prevent scrolling
+    document.body.style.overflow = 'hidden';
   }
 
   function closeLightbox(event) {
-    // Close lightbox - allow close button or clicking outside content
     if (event) {
-      // If clicking on lightbox backdrop, allow closing
       if (event.target.id === 'lightbox') {
-        // Clicking outside the image area - close
+        // Backdrop click
       } else if (!event.target.closest('.lightbox-content') && event.target.id !== 'lightbox') {
-        // If it's not inside lightbox-content, don't close (e.g., if it's an arrow button)
         if (!event.target.classList.contains('lightbox-close') && 
             !event.target.classList.contains('lightbox-prev') && 
             !event.target.classList.contains('lightbox-next')) {
@@ -474,8 +542,10 @@ function stars(float $rating): string {
     }
     
     const lightbox = document.getElementById('lightbox');
-    lightbox.classList.remove('show');
-    document.body.style.overflow = 'auto';
+    if (lightbox) {
+      lightbox.classList.remove('show');
+      document.body.style.overflow = 'auto';
+    }
   }
 
   function nextImage(event) {
@@ -490,14 +560,12 @@ function stars(float $rating): string {
     document.getElementById('lightboxImg').src = galleryImages[currentImageIndex];
   }
 
-  // Close lightbox with Escape key
   document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
       closeLightbox();
     }
   });
 
-  // Close lightbox when clicking the X button
   document.querySelector('.lightbox-close')?.addEventListener('click', closeLightbox);
 
   // Initialize date input with minimum date (today)
@@ -508,7 +576,6 @@ function stars(float $rating): string {
       const minDate = today.toISOString().split('T')[0];
       dateInput.setAttribute('min', minDate);
       
-      // Validate on change to prevent past dates
       dateInput.addEventListener('change', function() {
         const selectedDate = new Date(this.value);
         const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -519,7 +586,6 @@ function stars(float $rating): string {
         }
       });
       
-      // Prevent typing past dates
       dateInput.addEventListener('blur', function() {
         if (this.value) {
           const selectedDate = new Date(this.value);
@@ -534,19 +600,47 @@ function stars(float $rating): string {
     }
   }
 
+  // Dynamic Add-ons Filtering Function
+  function initAddonFilters() {
+    const eventSelect = document.querySelector('select[name="event_type"]');
+    const addonItems = document.querySelectorAll('.addon-group-item');
+    const noEventMessage = document.getElementById('no-event-message');
+
+    if (eventSelect) {
+      eventSelect.addEventListener('change', function() {
+        const selectedEvent = this.value;
+        let countVisible = 0;
+
+        addonItems.forEach(item => {
+          const checkbox = item.querySelector('input[type="checkbox"]');
+          if (checkbox) checkbox.checked = false;
+
+          if (item.getAttribute('data-event') === selectedEvent) {
+            item.style.display = 'block';
+            countVisible++;
+          } else {
+            item.style.display = 'none';
+          }
+        });
+
+        if (noEventMessage) {
+          if (countVisible > 0) {
+            noEventMessage.style.display = 'none';
+          } else {
+            noEventMessage.style.display = 'block';
+          }
+        }
+      });
+    }
+  }
+
   // Initialize on page load
   document.addEventListener('DOMContentLoaded', function() {
     initWishlist();
     initDatePicker();
+    initAddonFilters();
   });
 </script>
-
-<style>
-  @keyframes slideOutRight {
-    from { transform: translateX(0); opacity: 1; }
-    to { transform: translateX(400px); opacity: 0; }
-  }
-</style>
 
 </body>
 </html>
