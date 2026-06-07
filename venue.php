@@ -1,6 +1,8 @@
 <?php
-require_once 'data.php';
+require_once 'config/database.php';
 require_once 'config/session_config.php';
+require_once 'config/app.php';
+require_once 'data.php';
 
 // Update activity
 $_SESSION['last_activity'] = time();
@@ -402,7 +404,6 @@ function stars(float $rating): string {
               Add to Cart
             </button>
 
-            <button type="button" class="btn-wishlist">♡ Save to Wishlist</button>
             <div class="free-note">✓ Free to enquire — no booking fees</div>
 
             <hr class="divider" />
@@ -426,61 +427,6 @@ function stars(float $rating): string {
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-  // Initialize wishlist button state
-  function initWishlist() {
-    const venueId = <?php echo isset($selected['id']) ? $selected['id'] : 0; ?>;
-    const wishlistBtn = document.querySelector('.btn-wishlist');
-    if (!wishlistBtn) return;
-    
-    const wishlist = JSON.parse(localStorage.getItem('tagpo_wishlist')) || [];
-    
-    if (wishlist.includes(venueId)) {
-      wishlistBtn.classList.add('active');
-      wishlistBtn.innerHTML = '♥ Saved to Wishlist';
-    }
-    
-    wishlistBtn.addEventListener('click', toggleWishlist);
-  }
-
-  function toggleWishlist() {
-    const venueId = <?php echo isset($selected['id']) ? $selected['id'] : 0; ?>;
-    const venueName = '<?php echo htmlspecialchars($selected['name'] ?? ""); ?>';
-    const wishlistBtn = document.querySelector('.btn-wishlist');
-    
-    wishlistBtn.classList.add('loading');
-    
-    let wishlist = JSON.parse(localStorage.getItem('tagpo_wishlist')) || [];
-    
-    setTimeout(() => {
-      if (wishlist.includes(venueId)) {
-        wishlist = wishlist.filter(id => id !== venueId);
-        showToast('Removed from wishlist', false);
-        wishlistBtn.innerHTML = '♡ Save to Wishlist';
-        wishlistBtn.classList.remove('active');
-      } else {
-        wishlist.push(venueId);
-        showToast(venueName + ' saved to wishlist!', true);
-        wishlistBtn.innerHTML = '♥ Saved to Wishlist';
-        wishlistBtn.classList.add('active');
-      }
-      
-      localStorage.setItem('tagpo_wishlist', JSON.stringify(wishlist));
-      wishlistBtn.classList.remove('loading');
-    }, 300);
-  }
-
-  function showToast(message, isSuccess) {
-    const toast = document.createElement('div');
-    toast.className = 'wishlist-toast' + (isSuccess ? '' : ' error');
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    
-    setTimeout(() => {
-      toast.style.animation = 'slideOutRight 0.3s ease forwards';
-      setTimeout(() => toast.remove(), 300);
-    }, 3000);
-  }
-
   function setTab(el) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     el.classList.add('active');
@@ -636,7 +582,6 @@ function stars(float $rating): string {
 
   // Initialize on page load
   document.addEventListener('DOMContentLoaded', function() {
-    initWishlist();
     initDatePicker();
     initAddonFilters();
   });

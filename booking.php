@@ -1,8 +1,11 @@
 <?php
-// Get venues (from session if admin added them, plus default venues)
+require_once 'config/database.php';
 require_once 'config/session_config.php';
+require_once 'config/app.php';
 
-// Update activity
+$baseUrl = getBaseUrl();
+
+// Update activity timestamp
 $_SESSION['last_activity'] = time();
 
 // Refresh cookie if logged in

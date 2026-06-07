@@ -1,5 +1,9 @@
 <?php
+require_once dirname(__DIR__) . '/config/database.php';
 require_once dirname(__DIR__) . '/config/session_config.php';
+require_once dirname(__DIR__) . '/config/app.php';
+
+$baseUrl = getBaseUrl();
 
 // Default admin account
 $admin = [
@@ -19,15 +23,44 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $error = "Invalid email format!";
     }
 
-    if (!$error && $email == $admin['email'] && $password == $admin['password']) {
+    // First try database authentication
+    if (!$error) {
+        $stmt = $conn->prepare("SELECT id, name, email, password, role FROM users WHERE email = ? LIMIT 1");
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($result->num_rows > 0) {
+            $user = $result->fetch_assoc();
+            if (password_verify($password, $user['password'])) {
+                $found = true;
+                $userToSet = [
+                    'id' => $user['id'],
+                    'name' => $user['name'],
+                    'email' => $user['email'],
+                    'role' => $user['role']
+                ];
+                $_SESSION['current_user'] = $userToSet;
+                $_SESSION['last_activity'] = time();
+                setcookie('user_session', $user['email'], time() + (60 * 60 * 24 * 7), '/');
+                header("Location: " . getBaseUrl() . "/index.php");
+                exit();
+            }
+        }
+        $stmt->close();
+    }
+
+    // Fallback to hardcoded admin if not found in database
+    if (!$found && !$error && $email == $admin['email'] && $password == $admin['password']) {
         $_SESSION['current_user'] = $admin;
         $_SESSION['last_activity'] = time();
         setcookie('user_session', $admin['email'], time() + (60 * 60 * 24 * 7), '/');
-        header("Location: " . getBaseUrl() . "index.php");
+        header("Location: " . getBaseUrl() . "/index.php");
         exit();
     }
 
-    if (!$error && isset($_SESSION['users'])) {
+    // Also check session-stored users for backward compatibility
+    if (!$found && !$error && isset($_SESSION['users'])) {
         foreach ($_SESSION['users'] as $user) {
             if ($user['email'] == $email && $user['password'] == $password) {
                 $found = true;
@@ -40,7 +73,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     if ($found) {
         setcookie('user_session', $_SESSION['current_user']['email'], time() + (60 * 60 * 24 * 7), '/');
-        header("Location: " . getBaseUrl() . "index.php");
+        header("Location: " . getBaseUrl() . "/index.php");
         exit();
     } elseif (!$error) {
         $error = "Invalid email or password!";

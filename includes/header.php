@@ -1,8 +1,11 @@
 <?php
-// Always include session config so helper functions are defined
-require_once dirname(__DIR__) . '/config/session_config.php';
+// Only load configs if not already loaded
+if (!function_exists('getBaseUrl')) {
+    require_once dirname(dirname(__FILE__)) . '/config/database.php';
+    require_once dirname(dirname(__FILE__)) . '/config/session_config.php';
+}
 
-$baseUrl = isset($baseUrl) ? $baseUrl : '';
+$baseUrl = isset($baseUrl) ? $baseUrl : getBaseUrl();
 $current = basename($_SERVER['PHP_SELF']);
 
 $isAdmin = isAdmin();
@@ -32,7 +35,6 @@ $currentUser = getCurrentUser();
         <li class="nav-item"><a class="nav-link <?php echo $current === 'index.php' ? 'fw-semibold text-dark' : ''; ?>" href="<?php echo $baseUrl; ?>index.php">Home</a></li>
         <li class="nav-item"><a class="nav-link" href="<?php echo $baseUrl; ?>index.php#venues">Explore Venues</a></li>
         <li class="nav-item"><a class="nav-link" href="<?php echo $baseUrl; ?>index.php#about">About Us</a></li>
-        <li class="nav-item"><a class="nav-link" href="<?php echo $baseUrl; ?>wishlist.php"> Wishlist </a></li>
         <li class="nav-item">
           <a class="nav-link position-relative" href="<?php echo $baseUrl; ?>cart.php">
             Cart

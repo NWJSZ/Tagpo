@@ -1,9 +1,17 @@
+<?php
+require_once 'config/database.php';
+require_once 'config/session_config.php';
+require_once 'config/app.php';
+
+$baseUrl = getBaseUrl();
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Search Results | VenueSuite</title>
+    <title>Search Results | Tagpo</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
@@ -11,11 +19,11 @@
 </head>
 <body>
 
-<?php include 'includes/header.php'; ?>
+<?php include __DIR__ . '/includes/header.php'; ?>
 
 <div class="container mt-5">
     <div class="mb-3">
-        <a href="index.php" class="btn btn-outline-secondary btn-sm">
+        <a href="<?= $baseUrl ?>/index.php" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-arrow-left"></i> Back to Home
         </a>
     </div>

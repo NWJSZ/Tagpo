@@ -327,14 +327,8 @@ footer .footer-bottom { font-size: 0.8rem; color: #64748b; padding-bottom: 28px;
 .min-notice { display: flex; align-items: flex-start; gap: 8px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 10px 12px; font-size: .8rem; color: #92400e; margin-bottom: 14px; }
 .btn-enquire { width: 100%; padding: 14px; border: none; border-radius: 10px; background: var(--accent); color: #fff; font-family: inherit; font-size: .95rem; font-weight: 700; cursor: pointer; transition: background .2s, transform .1s; margin-bottom: 10px; }
 .btn-enquire:hover { background: #1344b0; transform: translateY(-1px); }
-.btn-wishlist { width: 100%; padding: 12px; border: 1.5px solid var(--border); border-radius: 10px; background: transparent; color: var(--deep); font-family: inherit; font-size: .88rem; font-weight: 600; cursor: pointer; transition: all .2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
-.btn-wishlist:hover { border-color: #e11d48; color: #e11d48; }
-.btn-wishlist.active { background: #ffe4e6; border-color: #e11d48; color: #e11d48; font-weight: 700; }
-.btn-wishlist.loading { opacity: 0.6; pointer-events: none; }
 
 /* WISHLIST TOAST */
-.wishlist-toast { position: fixed; bottom: 24px; right: 24px; background: #10b981; color: #fff; padding: 14px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.15); font-size: .88rem; font-weight: 600; animation: slideInRight 0.3s ease; z-index: 1001; }
-.wishlist-toast.error { background: #ef4444; }
 @keyframes slideInRight { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 .free-note { text-align: center; font-size: .78rem; color: var(--green); margin-top: 12px; font-weight: 600; }
 .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
@@ -381,13 +375,6 @@ footer .footer-bottom { font-size: 0.8rem; color: #64748b; padding-bottom: 28px;
 
 .section,
 .capacity-row { scroll-margin-top: 50px; }
-
-.wishlist-hero { background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), 
-                url('https://i.pinimg.com/736x/33/9e/f7/339ef7d65570ac9b2bf710625e00dc3a.jpg');
-    background-size: cover; background-position: center; padding: 60px 0; color: #fff; margin-bottom: 40px;}
-
-.wishlist-hero h1,
-.wishlist-hero p { color: #fff; }
 
 /* ── VENUE SELECTION (BOOKING PAGE) ── */
 .venue-selection-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }

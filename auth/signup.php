@@ -1,5 +1,9 @@
 <?php
+require_once dirname(__DIR__) . '/config/database.php';
 require_once dirname(__DIR__) . '/config/session_config.php';
+require_once dirname(__DIR__) . '/config/app.php';
+
+$baseUrl = getBaseUrl();
 
 // Check if user session expired (no cookie but had session)
 if (!isset($_COOKIE['user_session']) && isset($_SESSION['current_user'])) {
@@ -11,6 +15,7 @@ if (!isset($_COOKIE['user_session']) && isset($_SESSION['current_user'])) {
 
 $error = "";
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
+
     $name = trim($_POST['name'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
@@ -26,39 +31,42 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $error = "Passwords do not match!";
     }
 
-    if (!isset($_SESSION['users'])) {
-        $_SESSION['users'] = [];
-    }
-
-    if (!$error && $email === 'admin@tagpo.com') {
-        $error = "An account with that email already exists!";
-    }
-
     if (!$error) {
-        foreach ($_SESSION['users'] as $user) {
-            if ($user['email'] === $email) {
-                $error = "An account with that email already exists!";
-                break;
-            }
+
+        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+
+        // check email in DATABASE
+        $stmt = $conn->prepare("SELECT id FROM users WHERE email = ?");
+        $stmt->bind_param("s", $email);
+        $stmt->execute();
+        $stmt->store_result();
+
+        if ($stmt->num_rows > 0) {
+            $error = "An account with that email already exists!";
+        } else {
+
+            $stmt = $conn->prepare("
+                INSERT INTO users (name, email, password, role)
+                VALUES (?, ?, ?, 'user')
+            ");
+
+            $stmt->bind_param("sss", $name, $email, $hashedPassword);
+            $stmt->execute();
+
+            // AUTO LOGIN
+            $_SESSION['current_user'] = [
+                'name' => $name,
+                'email' => $email,
+                'role' => 'user'
+            ];
+
+            $_SESSION['last_activity'] = time();
+
+            setcookie('user_session', $email, time() + (60 * 60 * 24 * 7), '/');
+
+            header('Location: ' . getBaseUrl() . 'index.php');
+            exit();
         }
-    }
-
-    if (!$error) {
-        $_SESSION['users'][] = [
-            'name' => $name,
-            'email' => $email,
-            'password' => $password,
-            'role' => 'user'
-        ];
-
-        // AUTO LOGIN (IMPORTANT)
-        $_SESSION['current_user'] = end($_SESSION['users']);
-        $_SESSION['last_activity'] = time();
-
-        setcookie('user_session', $email, time() + (60 * 60 * 24 * 7), '/');
-
-        header('Location: ' . getBaseUrl() . 'index.php');
-        exit();
     }
 }
 ?>

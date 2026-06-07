@@ -1,5 +1,7 @@
 <?php
+require_once dirname(__DIR__) . '/config/database.php';
 require_once dirname(__DIR__) . '/config/session_config.php';
+require_once dirname(__DIR__) . '/config/app.php';
 
 $baseUrl = '../';
 

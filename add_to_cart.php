@@ -1,5 +1,9 @@
 <?php
+require_once 'config/database.php';
 require_once 'config/session_config.php';
+require_once 'config/app.php';
+
+$baseUrl = getBaseUrl();
 
 // Check if user session expired (no cookie but had session)
 if (!isset($_COOKIE['user_session']) && isset($_SESSION['current_user'])) {

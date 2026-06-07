@@ -1,5 +1,9 @@
 <?php
+require_once 'config/database.php';
 require_once 'config/session_config.php';
+require_once 'config/app.php';
+
+$baseUrl = getBaseUrl();
 
 // Update activity timestamp
 $_SESSION['last_activity'] = time();
@@ -90,22 +94,17 @@ if (!empty($location)) {
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" />
-  <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="stylesheet" href="<?= getBaseUrl() ?>/assets/css/styles.css">
 </head>
 
 <body>
 
   <?php if (isset($sessionExpired) && $sessionExpired): ?>
     <div class="alert alert-warning alert-dismissible fade show m-3" role="alert" style="font-size: 1.1rem; font-weight: 500;">
-      <strong>Session Expired!</strong> Your login session has timed out after 60 seconds.
+      <strong>Session Expired!</strong> Your login session has timed out after 30 minutes.
       <a href="login.php" class="alert-link btn btn-sm btn-warning ms-3">Log In Again</a>
       <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
-
-    <script>
-      // Clear wishlist when session expires
-      localStorage.removeItem('tagpo_wishlist');
-    </script>
   <?php endif; ?>
 
   <?php include 'includes/header.php'; ?>
@@ -360,8 +359,6 @@ if (!empty($location)) {
   <script>
     <?php if (isset($_SESSION['current_user']) && !isset($sessionExpired)): ?>
       setTimeout(function() {
-        localStorage.removeItem('tagpo_wishlist');
-
         alert('Your session has expired after 30 minutes. Please log in again.');
         window.location.reload(); //test
       }, 1800000); // 30 minutes

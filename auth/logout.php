@@ -1,5 +1,9 @@
 <?php
-session_start();
+require_once dirname(__DIR__) . '/config/database.php';
+require_once dirname(__DIR__) . '/config/session_config.php';
+require_once dirname(__DIR__) . '/config/app.php';
+
+$baseUrl = getBaseUrl();
 
 // Clear session array
 $_SESSION = [];
@@ -29,7 +33,6 @@ setcookie('user_session', '', time() - 3600, '/');
 </head>
 <body>
     <script>
-        localStorage.removeItem('tagpo_wishlist');
         window.location.href = './login.php?status=logged_out';
     </script>
 </body>
