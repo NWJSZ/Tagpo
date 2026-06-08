@@ -246,26 +246,6 @@ if (!empty($location)) {
       <?php endforeach; ?>
     </div>
 
-    <!-- ==================== FEATURED SECTION ====================
-    <section class="feature-section">
-      <div class="container">
-        <div class="feature-with-image">
-          <div class="feature-image">
-            <img src="https://i.pinimg.com/1200x/67/cd/04/67cd04f1d7b0432e8d214d4b7d67f6f2.jpg" alt="Event Planning">
-          </div>
-          <div class="feature-text">
-            <span class="featured-badge">Award Winning Platform</span>
-            <h2>Because Every Event <span style="font-style: italic; color: #d4c5b0;">Deserves Perfection</span></h2>
-            <p>Planning an event shouldn't be stressful. From finding the perfect venue to managing bookings and payments, Tagpo simplifies the entire process. Browse hundreds of venues across the Philippines, compare prices and amenities, and book with confidence.</p>
-            <p>Our platform is designed specifically for Filipino event planners, with venues that understand local preferences and celebration traditions.</p>
-            <a href="search.php" class="btn btn-dark btn-lg mt-3">
-              <i class="bi bi-search me-2"></i>Browse Venues
-            </a>
-          </div>
-        </div>
-      </div>
-    </section> -->
-
     <div id="features" class="feature-strip rounded-3 mb-5">
       <div class="row g-0 justify-content-center">
         <div class="col-md-3 col-6">

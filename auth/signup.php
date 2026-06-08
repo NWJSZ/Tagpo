@@ -16,12 +16,15 @@ if (!isset($_COOKIE['user_session']) && isset($_SESSION['current_user'])) {
 $error = "";
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
-    $name = trim($_POST['name'] ?? '');
+    // Sinasalo na natin nang hiwalay ang First at Last Name mula sa form
+    $firstName = trim($_POST['first_name'] ?? '');
+    $lastName = trim($_POST['last_name'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
     $confirmPassword = $_POST['confirm_password'] ?? '';
 
-    if ($name === '' || $email === '' || $password === '') {
+    // Binago ang check kung empty ang mga required fields
+    if ($firstName === '' || $lastName === '' || $email === '' || $password === '') {
         $error = "All fields are required!";
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = "Invalid email format!";
@@ -45,17 +48,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $error = "An account with that email already exists!";
         } else {
 
+            // In-update ang query para sa dalawang bagong columns (first_name, last_name)
             $stmt = $conn->prepare("
-                INSERT INTO users (name, email, password, role)
-                VALUES (?, ?, ?, 'user')
+                INSERT INTO users (first_name, last_name, email, password, role)
+                VALUES (?, ?, ?, ?, 'user')
             ");
 
-            $stmt->bind_param("sss", $name, $email, $hashedPassword);
+            // 'ssss' na ngayon ang types dahil apat na strings ang ipapasa natin
+            $stmt->bind_param("ssss", $firstName, $lastName, $email, $hashedPassword);
             $stmt->execute();
 
             // AUTO LOGIN
+            // Mas maganda na hiwalay sila sa session para kung gusto mo tawagin 
+            // ang "Hi, John!", gagamitin mo lang ang $_SESSION['current_user']['first_name']
             $_SESSION['current_user'] = [
-                'name' => $name,
+                'first_name' => $firstName,
+                'last_name' => $lastName,
                 'email' => $email,
                 'role' => 'user'
             ];
@@ -122,11 +130,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <?php endif; ?>
 
                 <form method="POST">
-                    <div class="mb-3">
-                        <label class="auth-label">Full Name</label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="fa-regular fa-user"></i></span>
-                            <input type="text" name="name" class="form-control" placeholder="Your full name" value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>" required>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="auth-label">First Name</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fa-regular fa-user"></i></span>
+                                <input type="text" name="first_name" class="form-control" placeholder="John" value="<?php echo htmlspecialchars($_POST['first_name'] ?? ''); ?>" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="auth-label">Last Name</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fa-regular fa-user"></i></span>
+                                <input type="text" name="last_name" class="form-control" placeholder="Doe" value="<?php echo htmlspecialchars($_POST['last_name'] ?? ''); ?>" required>
+                            </div>
                         </div>
                     </div>
 
@@ -168,12 +185,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <p class="auth-switch">
                     Already have an account? <a href="login.php">Sign in</a>
                 </p>
-            </div>
-        </div>
-    </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="../assets/js/loginsignup.js"></script>
+                <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+                <script src="../assets/js/loginsignup.js"></script>
 </body>
 
 </html>

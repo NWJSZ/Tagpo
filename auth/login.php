@@ -7,7 +7,8 @@ $baseUrl = getBaseUrl();
 
 // Default admin account
 $admin = [
-    'name' => 'Admin',
+    'first_name' => 'Admin',
+    'last_name' => 'User',
     'email' => 'admin@tagpo.com',
     'password' => 'admin123',
     'role' => 'admin'
@@ -25,7 +26,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     // First try database authentication
     if (!$error) {
-        $stmt = $conn->prepare("SELECT id, name, email, password, role FROM users WHERE email = ? LIMIT 1");
+        $stmt = $conn->prepare("SELECT id, first_name, last_name, email, password, role FROM users WHERE email = ? LIMIT 1");
         $stmt->bind_param("s", $email);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -36,7 +37,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $found = true;
                 $userToSet = [
                     'id' => $user['id'],
-                    'name' => $user['name'],
+                    'first_name' => $user['first_name'],
+                    'last_name' => $user['last_name'],
                     'email' => $user['email'],
                     'role' => $user['role']
                 ];
@@ -167,15 +169,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         Sign In <i class="fa-solid fa-arrow-right ms-2"></i>
                     </button>
                 </form>
-
-                <div class="auth-divider">
-                    <hr><span>Or continue with</span><hr>
-                </div>
-
-                <div class="d-flex gap-2">
-                    <button type="button" class="btn-social"><i class="fab fa-google"></i> Google</button>
-                    <button type="button" class="btn-social"><i class="fab fa-apple"></i> Apple</button>
-                </div>
 
                 <p class="auth-switch">
                     New to TAGPO? <a href="signup.php">Create an account</a>

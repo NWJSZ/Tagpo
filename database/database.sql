@@ -12,16 +12,13 @@ USE tagpo_db;
 -- ======================================================
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
+    first_name VARCHAR(100) NOT NULL, 
+    last_name VARCHAR(100) NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
     role ENUM('user', 'admin') DEFAULT 'user',
     phone VARCHAR(20),
-    address VARCHAR(255),
-    city VARCHAR(100),
-    is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_email (email),
     INDEX idx_role (role)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -39,15 +36,11 @@ CREATE TABLE IF NOT EXISTS venues (
     reviews INT DEFAULT 0,
     description TEXT,
     image_url VARCHAR(500),
-    tag VARCHAR(100),
     created_by INT,
-    is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY fk_venue_creator (created_by) REFERENCES users(id) ON DELETE SET NULL,
     INDEX idx_location (location),
-    INDEX idx_price (price),
-    INDEX idx_active (is_active)
+    INDEX idx_price (price)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ======================================================
@@ -161,6 +154,9 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 -- Insert default admin user
 INSERT INTO users (name, email, password, role) VALUES 
 ('Admin User', 'admin@tagpo.com', 'admin123', 'admin');
+
+INSERT INTO users (first_name, last_name, email, password, role) VALUES 
+('Jen', 'Ilao', 'jen@gmail.com', 'admin123', 'admin');
 
 -- Insert sample venues
 INSERT INTO venues (name, location, price, capacity, rating, reviews, description, tag, image_url, is_active) VALUES 

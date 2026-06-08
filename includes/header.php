@@ -68,7 +68,7 @@ $currentUser = getCurrentUser();
         <?php if (isLoggedIn()): ?>
 
           <span class="fw-semibold d-none d-md-inline">
-            Hi, <?php echo htmlspecialchars($currentUser['name']); ?> 👋
+            Hi, <?php echo htmlspecialchars($currentUser['first_name']); ?> 👋
           </span>
 
 
