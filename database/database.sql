@@ -1,220 +1,307 @@
 -- ======================================================
--- TAGPO - Database Schema Initialization
--- Run this in phpMyAdmin or MySQL command line
+-- TAGPO EVENT VENUE BOOKING SYSTEM
+-- Complete Normalized Database Schema - 9 Entities
 -- ======================================================
 
--- Create database
-CREATE DATABASE IF NOT EXISTS tagpo_db;
+DROP DATABASE IF EXISTS tagpo_db;
+CREATE DATABASE tagpo_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE tagpo_db;
 
 -- ======================================================
--- USERS TABLE
+-- 1. USERS TABLE
 -- ======================================================
-CREATE TABLE IF NOT EXISTS users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    first_name VARCHAR(100) NOT NULL, 
+CREATE TABLE users (
+    user_id INT AUTO_INCREMENT PRIMARY KEY,
+    first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
-    email VARCHAR(100) UNIQUE NOT NULL,
-    password VARCHAR(255) NOT NULL,
-    role ENUM('user', 'admin') DEFAULT 'user',
+    email VARCHAR(100) UNIQUE NULL, -- NULL for anonymous users during checkout
+    password VARCHAR(255),
     phone VARCHAR(20),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    role ENUM('user', 'admin') DEFAULT 'user'
     INDEX idx_email (email),
     INDEX idx_role (role)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ======================================================
--- VENUES TABLE
--- ======================================================
-CREATE TABLE IF NOT EXISTS venues (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(150) NOT NULL,
-    location VARCHAR(200) NOT NULL,
-    price DECIMAL(12, 2) NOT NULL,
-    capacity INT NOT NULL,
-    rating DECIMAL(3, 1) DEFAULT 0,
-    reviews INT DEFAULT 0,
-    description TEXT,
-    image_url VARCHAR(500),
-    created_by INT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY fk_venue_creator (created_by) REFERENCES users(id) ON DELETE SET NULL,
-    INDEX idx_location (location),
-    INDEX idx_price (price)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ======================================================
--- ACTIVITIES TABLE (For venue packages/add-ons)
--- ======================================================
-CREATE TABLE IF NOT EXISTS activities (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    venue_id INT NOT NULL,
-    name VARCHAR(150) NOT NULL,
-    description TEXT,
-    price DECIMAL(10, 2) NOT NULL,
-    duration_minutes INT,
-    max_count INT DEFAULT 1,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY fk_activity_venue (venue_id) REFERENCES venues(id) ON DELETE CASCADE,
-    INDEX idx_venue (venue_id),
-    INDEX idx_active (is_active)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ======================================================
--- BOOKINGS TABLE
--- ======================================================
-CREATE TABLE IF NOT EXISTS bookings (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    booking_number VARCHAR(50) UNIQUE NOT NULL,
-    user_id INT NOT NULL,
-    venue_id INT NOT NULL,
-    event_date DATE NOT NULL,
-    guest_count INT NOT NULL,
-    event_type VARCHAR(50),
-    venue_package VARCHAR(255),
-    subtotal DECIMAL(12, 2),
-    activities_total DECIMAL(12, 2) DEFAULT 0,
-    discount DECIMAL(12, 2) DEFAULT 0,
-    total_price DECIMAL(12, 2) NOT NULL,
-    special_requirements TEXT,
-    status ENUM('pending', 'confirmed', 'completed', 'cancelled') DEFAULT 'pending',
-    payment_status ENUM('pending', 'completed', 'failed') DEFAULT 'pending',
-    payment_method VARCHAR(50),
-    transaction_id VARCHAR(100),
-    notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY fk_booking_user (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY fk_booking_venue (venue_id) REFERENCES venues(id) ON DELETE RESTRICT,
-    INDEX idx_user (user_id),
-    INDEX idx_status (status),
-    INDEX idx_event_date (event_date),
-    INDEX idx_booking_number (booking_number)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ======================================================
--- BOOKING_ACTIVITIES TABLE (Many-to-Many relationship)
--- ======================================================
-CREATE TABLE IF NOT EXISTS booking_activities (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    booking_id INT NOT NULL,
-    activity_id INT NOT NULL,
-    quantity INT DEFAULT 1,
-    unit_price DECIMAL(10, 2) NOT NULL,
-    total_price DECIMAL(12, 2) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY fk_ba_booking (booking_id) REFERENCES bookings(id) ON DELETE CASCADE,
-    FOREIGN KEY fk_ba_activity (activity_id) REFERENCES activities(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_booking_activity (booking_id, activity_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ======================================================
--- REVIEWS TABLE
--- ======================================================
-CREATE TABLE IF NOT EXISTS reviews (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    booking_id INT,
-    venue_id INT NOT NULL,
-    user_id INT NOT NULL,
-    rating INT CHECK (rating >= 1 AND rating <= 5),
-    review_text TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY fk_review_booking (booking_id) REFERENCES bookings(id) ON DELETE SET NULL,
-    FOREIGN KEY fk_review_venue (venue_id) REFERENCES venues(id) ON DELETE CASCADE,
-    FOREIGN KEY fk_review_user (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    INDEX idx_venue (venue_id),
-    INDEX idx_user (user_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ======================================================
--- AUDIT LOG TABLE
--- ======================================================
-CREATE TABLE IF NOT EXISTS audit_logs (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT,
-    action VARCHAR(100) NOT NULL,
-    table_name VARCHAR(100),
-    record_id INT,
-    old_values JSON,
-    new_values JSON,
-    ip_address VARCHAR(45),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY fk_audit_user (user_id) REFERENCES users(id) ON DELETE SET NULL,
-    INDEX idx_created_at (created_at),
-    INDEX idx_action (action)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ======================================================
--- INSERT DEFAULT DATA
--- ======================================================
-
--- Insert default admin user
-INSERT INTO users (name, email, password, role) VALUES 
-('Admin User', 'admin@tagpo.com', 'admin123', 'admin');
-
-INSERT INTO users (first_name, last_name, email, password, role) VALUES 
-('Jen', 'Ilao', 'jen@gmail.com', 'admin123', 'admin');
-
--- Insert sample venues
-INSERT INTO venues (name, location, price, capacity, rating, reviews, description, tag, image_url, is_active) VALUES 
-(
-    'Paradiso Terrestre',
-    'Molino, Cavite City',
-    35000,
-    500,
-    4.8,
-    36,
-    'A stunning beachfront venue perfect for weddings and debuts with breathtaking sunset views.',
-    'Wedding · Debut',
-    'assets/images/paradiso1.jpg',
-    TRUE
-),
-(
-    'Blue Gardens',
-    'Makati City',
-    60000,
-    250,
-    4.9,
-    52,
-    'Elegant garden venue ideal for proms and galas with modern amenities and exquisite landscaping.',
-    'Prom · Gala',
-    'assets/images/gardens1.jpg',
-    TRUE
-),
-(
-    'The Green Lounge Events Place',
-    'Quezon City',
-    45000,
-    300,
-    4.7,
-    28,
-    'Contemporary event space suitable for birthday parties, corporate events, and various celebrations.',
-    'Birthday · Corporate',
-    'assets/images/lounge1.jpg',
-    TRUE
 );
 
--- Insert sample activities for Paradiso Terrestre
-INSERT INTO activities (venue_id, name, description, price, duration_minutes) VALUES 
-(1, 'Photography Package', '4 hours of professional photography coverage', 8000, 240),
-(1, 'Catering Service', 'Full buffet service for up to 100 guests', 15000, 180),
-(1, 'Sound & Lighting', 'Professional audio and lighting equipment', 5000, 480);
-
--- Insert sample activities for Blue Gardens
-INSERT INTO activities (venue_id, name, description, price, duration_minutes) VALUES 
-(2, 'Decoration Package', 'Complete venue decoration with floral arrangements', 12000, 240),
-(2, 'DJ & Entertainment', '4 hours of DJ service with MC', 6000, 240),
-(2, 'Premium Catering', 'Multi-course catering for up to 200 guests', 25000, 240);
-
--- Insert sample activities for The Green Lounge
-INSERT INTO activities (venue_id, name, description, price, duration_minutes) VALUES 
-(3, 'Cake & Desserts', 'Customized cake and dessert station', 4000, 120),
-(3, 'Game & Activities', 'Curated games and activities for guests', 3000, 180),
-(3, 'Venue Setup', 'Complete setup and cleanup service', 5000, 240);
+-- ======================================================
+-- 2. EVENT_TYPES TABLE (NEW - For filtering addons)
+-- ======================================================
+CREATE TABLE event_types (
+    event_type_id INT AUTO_INCREMENT PRIMARY KEY,
+    event_type_name VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT
+);
 
 -- ======================================================
--- END OF SCHEMA
+-- 3. VENUES TABLE (Normalized - no denormalized fields)
 -- ======================================================
+CREATE TABLE venues (
+    venue_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(150) NOT NULL,
+    location VARCHAR(200) NOT NULL,
+    capacity INT NOT NULL CHECK (capacity > 0),
+    price_per_guest DECIMAL(10, 2) NOT NULL CHECK (price_per_guest >= 0),
+    description TEXT,
+    image_url VARCHAR(500),
+    FOREIGN KEY fk_venue_creator (created_by) REFERENCES users(user_id) ON DELETE SET NULL,
+    INDEX idx_location (location),
+    INDEX idx_price (price_per_guest)
+);
+
+-- ======================================================
+-- 4. AMENITIES TABLE
+-- Stores venue amenities separately to avoid denormalization
+-- ======================================================
+CREATE TABLE amenities (
+    amenity_id INT AUTO_INCREMENT PRIMARY KEY,
+    venue_id INT NOT NULL,
+    amenity_name VARCHAR(100) NOT NULL,
+    FOREIGN KEY (venue_id)
+        REFERENCES venues(venue_id)
+        ON DELETE CASCADE,
+    INDEX idx_venue_id (venue_id)
+);
+
+-- ======================================================
+-- 5. ADDONS TABLE (Linked to EventTypes)
+-- ======================================================
+CREATE TABLE addons (
+    addon_id INT AUTO_INCREMENT PRIMARY KEY,
+    event_type_id INT NOT NULL,
+    addon_name VARCHAR(100) NOT NULL,
+    description TEXT,
+    price DECIMAL(10, 2) NOT NULL CHECK (price >= 0),
+    FOREIGN KEY (event_type_id)
+        REFERENCES event_types(event_type_id)
+        ON DELETE CASCADE,
+    INDEX idx_event_type_id (event_type_id)
+);
+
+-- ======================================================
+-- 6. CARTS TABLE (NEW - For shopping cart functionality)
+-- ======================================================
+CREATE TABLE carts (
+    cart_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    status ENUM('active', 'checked_out', 'abandoned') DEFAULT 'active',
+    FOREIGN KEY (user_id)
+        REFERENCES users(user_id)
+        ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_status (status)
+);
+
+-- ======================================================
+-- 7. BOOKINGS TABLE
+-- Links user, cart, venue, and event type
+-- ======================================================
+CREATE TABLE bookings (
+    booking_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    cart_id INT NOT NULL,
+    venue_id INT NOT NULL,
+    event_type_id INT NOT NULL,
+    event_date DATE NOT NULL CHECK (event_date >= CURDATE()),
+    event_time TIME NOT NULL,
+    duration INT NOT NULL CHECK (duration > 0), -- in hours
+    guest_count INT NOT NULL CHECK (guest_count > 0),
+    total_price DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    status ENUM('pending', 'confirmed', 'completed', 'cancelled') DEFAULT 'pending',
+    FOREIGN KEY (user_id)
+        REFERENCES users(user_id)
+        ON DELETE CASCADE,
+    FOREIGN KEY (cart_id)
+        REFERENCES carts(cart_id)
+        ON DELETE CASCADE,
+    FOREIGN KEY (venue_id)
+        REFERENCES venues(venue_id)
+        ON DELETE RESTRICT,
+    FOREIGN KEY (event_type_id)
+        REFERENCES event_types(event_type_id)
+        ON DELETE RESTRICT,
+    INDEX idx_user_id (user_id),
+    INDEX idx_cart_id (cart_id),
+    INDEX idx_venue_id (venue_id),
+    INDEX idx_event_type_id (event_type_id),
+    INDEX idx_event_date (event_date),
+    INDEX idx_status (status)
+);
+
+-- ======================================================
+-- 8. BOOKING_ADDONS TABLE (Junction Table - Many-to-Many)
+-- Stores historical pricing for audit trail
+-- ======================================================
+CREATE TABLE booking_addons (
+    booking_id INT NOT NULL,
+    addon_id INT NOT NULL,
+    quantity INT DEFAULT 1 CHECK (quantity > 0),
+    unit_price_at_booking DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    PRIMARY KEY (booking_id, addon_id),
+    FOREIGN KEY (booking_id)
+        REFERENCES bookings(booking_id)
+        ON DELETE CASCADE,
+    FOREIGN KEY (addon_id)
+        REFERENCES addons(addon_id)
+        ON DELETE RESTRICT,
+    INDEX idx_addon_id (addon_id)
+);
+
+-- ======================================================
+-- 9. PAYMENTS TABLE
+-- ======================================================
+CREATE TABLE payments (
+    payment_id INT AUTO_INCREMENT PRIMARY KEY,
+    booking_id INT NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL CHECK (amount > 0),
+    payment_method ENUM('credit_card', 'debit_card', 'gcash') NOT NULL,
+    payment_status ENUM('pending', 'paid', 'failed', 'refunded') DEFAULT 'pending',
+    transaction_id VARCHAR(100),
+    -- For credit/debit card
+    card_holder_name VARCHAR(200),
+    card_last_four VARCHAR(4),
+    card_expiry_month INT,
+    card_expiry_year INT,
+    -- For GCash
+    gcash_phone_number VARCHAR(20),
+    gcash_account_name VARCHAR(200),
+    -- Shared
+    payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (booking_id)
+        REFERENCES bookings(booking_id)
+        ON DELETE CASCADE,
+    INDEX idx_booking_id (booking_id),
+    INDEX idx_payment_status (payment_status),
+    INDEX idx_transaction_id (transaction_id)
+);
+
+-- ======================================================
+-- 10. REVIEWS TABLE
+-- ======================================================
+CREATE TABLE reviews (
+    review_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    venue_id INT NOT NULL,
+    rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    review_text TEXT,
+    review_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id)
+        REFERENCES users(user_id)
+        ON DELETE CASCADE,
+    FOREIGN KEY (venue_id)
+        REFERENCES venues(venue_id)
+        ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_venue_id (venue_id),
+    INDEX idx_rating (rating)
+);
+
+-- ======================================================
+-- SAMPLE DATA FOR TESTING
+-- ======================================================
+
+-- Event Types
+INSERT INTO event_types (event_type_name, description) VALUES
+('Wedding', 'Classic wedding ceremony and reception'),
+('Corporate', 'Business conferences, team building, and corporate events'),
+('Birthday', 'Birthday parties and celebrations'),
+('Seminar', 'Educational seminars and workshops'),
+('Barangay Fiesta', 'Community celebrations and festivals');
+
+-- Users
+INSERT INTO users (first_name, last_name, email, password, phone, role) VALUES
+('Maria', 'Santos', 'maria@email.com', SHA2('password123', 256), '09123456789', 'user'),
+('Juan', 'Cruz', 'juan@email.com', SHA2('password123', 256), '09987654321', 'user'),
+('Admin', 'User', 'admin@tagpo.com', SHA2('admin123', 256), '09111111111', 'admin');
+
+-- Venues
+INSERT INTO venues (name, location, capacity, price_per_guest, description) VALUES
+('Grand Ballroom Manila', 'Makati, Metro Manila', 500, 2500.00, 'Luxurious ballroom with modern amenities'),
+('Beach Resort Boracay', 'Boracay, Aklan', 300, 1500.00, 'Beautiful beachfront venue perfect for weddings'),
+('Business Center BGC', 'Bonifacio Global City, Taguig', 200, 1200.00, 'State-of-the-art corporate event space');
+
+-- Amenities
+INSERT INTO amenities (venue_id, amenity_name) VALUES
+(1, 'Air Conditioning'),
+(1, 'WiFi'),
+(1, 'Parking'),
+(1, 'Sound System'),
+(2, 'Beach Access'),
+(2, 'WiFi'),
+(2, 'Outdoor Pavilion'),
+(3, 'Meeting Rooms'),
+(3, 'Video Conference Equipment'),
+(3, 'WiFi');
+
+-- Addons (grouped by event type)
+INSERT INTO addons (event_type_id, addon_name, description, price) VALUES
+-- Wedding Addons
+(1, 'Catering Service', 'Full course meal for guests', 500.00),
+(1, 'DJ Service', '5-hour DJ service with MC', 3000.00),
+(1, 'Flower Arrangements', 'Decorative flowers for venue', 2000.00),
+(1, 'Photography', '8-hour photography coverage', 5000.00),
+(1, 'Videography', '8-hour video coverage with editing', 7000.00),
+-- Corporate Addons
+(2, 'Catering Service', 'Breakfast/lunch for attendees', 400.00),
+(2, 'AV Equipment', 'Projector, screen, and sound system', 5000.00),
+(2, 'Event Coordinator', 'Professional event management for 8 hours', 4000.00),
+(2, 'Coffee Break Service', 'Morning and afternoon coffee breaks', 800.00),
+-- Birthday Addons
+(3, 'Catering Service', 'Buffet and dessert service', 300.00),
+(3, 'Entertainment', 'Live band or DJ', 2000.00),
+(3, 'Cake & Decorations', 'Custom cake and balloon decorations', 1500.00),
+(3, 'Photo Booth', '3-hour photo booth with prints', 2500.00);
+
+-- User 1 creates a cart
+INSERT INTO carts (user_id, status) VALUES (1, 'active');
+
+-- Sample booking in cart
+INSERT INTO bookings (user_id, cart_id, venue_id, event_type_id, event_date, event_time, duration, guest_count, total_price, status) VALUES
+(1, 1, 1, 1, '2026-12-15', '18:00:00', 6, 150, 0, 'pending');
+
+-- Add addons to booking
+INSERT INTO booking_addons (booking_id, addon_id, quantity, unit_price_at_booking) VALUES
+(1, 1, 1, 500.00), -- Catering
+(1, 2, 1, 3000.00), -- DJ
+(1, 3, 1, 2000.00); -- Flowers
+
+-- Update total price: (venue_price * guest_count * duration) + addons
+UPDATE bookings SET total_price = (2500 * 150 * 6) + (500 + 3000 + 2000) WHERE booking_id = 1;
+
+-- Sample payment
+INSERT INTO payments (booking_id, amount, payment_method, payment_status, card_holder_name, card_last_four) VALUES
+(1, 2255500.00, 'credit_card', 'pending', 'MARIA SANTOS', '4242');
+
+-- ======================================================
+-- USEFUL QUERIES
+-- ======================================================
+
+-- Get all addons for a specific event type
+-- SELECT * FROM addons WHERE event_type_id = 1;
+
+-- Get all bookings in a user's active cart
+-- SELECT b.* FROM bookings b
+-- JOIN carts c ON b.cart_id = c.cart_id
+-- WHERE c.user_id = 1 AND c.status = 'active';
+
+-- Get total price of a booking (with addons)
+-- SELECT 
+--   (v.price_per_guest * b.guest_count * b.duration) + 
+--   COALESCE(SUM(ba.unit_price_at_booking * ba.quantity), 0) as total
+-- FROM bookings b
+-- JOIN venues v ON b.venue_id = v.venue_id
+-- LEFT JOIN booking_addons ba ON b.booking_id = ba.booking_id
+-- WHERE b.booking_id = 1
+-- GROUP BY b.booking_id;
+
+-- Get venue details with amenities
+-- SELECT v.*, GROUP_CONCAT(a.amenity_name) as amenities
+-- FROM venues v
+-- LEFT JOIN amenities a ON v.venue_id = a.venue_id
+-- WHERE v.venue_id = 1
+-- GROUP BY v.venue_id;
+
+-- Get venue reviews with ratings
+-- SELECT r.*, CONCAT(u.first_name, ' ', u.last_name) as reviewer_name
+-- FROM reviews r
+-- JOIN users u ON r.user_id = u.user_id
+-- WHERE r.venue_id = 1
+-- ORDER BY r.review_date DESC;

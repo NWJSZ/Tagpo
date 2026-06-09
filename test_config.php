@@ -2,7 +2,7 @@
 /**
  * TAGPO - Diagnostic Check
  * This file verifies all configs are loading correctly
- * Visit: http://localhost/event_system/Tagpo/test_config.php
+ * Visit: http://localhost/Tagpo/test_config.php
  */
 
 error_reporting(E_ALL);
