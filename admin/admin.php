@@ -158,6 +158,11 @@ function isValidBooking($b) {
                 <i class="bi bi-sliders me-2"></i> Manage / Delete Venues
             </a>
         </li>
+        <li>
+            <a href="?view=payments" class="nav-link <?= $view == 'payments' ? 'active' : '' ?>">
+                <i class="bi bi-cash-stack me-2"></i> Payments
+            </a>
+        </li>
     </ul>
     
     <hr>
@@ -305,6 +310,8 @@ function isValidBooking($b) {
             </div>
         <?php break;
     endswitch; ?>
+
+    
 
     <?php
     $count = 1;

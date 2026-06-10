@@ -17,17 +17,17 @@ CREATE TABLE users (
     email VARCHAR(100) UNIQUE NULL, -- NULL for anonymous users during checkout
     password VARCHAR(255),
     phone VARCHAR(20),
-    role ENUM('user', 'admin') DEFAULT 'user'
+    role ENUM('user', 'admin') DEFAULT 'user',
     INDEX idx_email (email),
     INDEX idx_role (role)
 );
 
 -- ======================================================
--- 2. EVENT_TYPES TABLE (NEW - For filtering addons)
+-- 2. EVENT TABLE (NEW - For filtering addons)
 -- ======================================================
-CREATE TABLE event_types (
-    event_type_id INT AUTO_INCREMENT PRIMARY KEY,
-    event_type_name VARCHAR(100) NOT NULL UNIQUE,
+CREATE TABLE event (
+    event_id INT AUTO_INCREMENT PRIMARY KEY,
+    event_name VARCHAR(100) NOT NULL UNIQUE,
     description TEXT
 );
 
@@ -39,12 +39,12 @@ CREATE TABLE venues (
     name VARCHAR(150) NOT NULL,
     location VARCHAR(200) NOT NULL,
     capacity INT NOT NULL CHECK (capacity > 0),
-    price_per_guest DECIMAL(10, 2) NOT NULL CHECK (price_per_guest >= 0),
+    price DECIMAL(10, 2) NOT NULL CHECK (price >= 0),
     description TEXT,
     image_url VARCHAR(500),
-    FOREIGN KEY fk_venue_creator (created_by) REFERENCES users(user_id) ON DELETE SET NULL,
+
     INDEX idx_location (location),
-    INDEX idx_price (price_per_guest)
+    INDEX idx_price (price)
 );
 
 -- ======================================================
@@ -62,18 +62,17 @@ CREATE TABLE amenities (
 );
 
 -- ======================================================
--- 5. ADDONS TABLE (Linked to EventTypes)
+-- 5. ADDONS TABLE (Linked to Event)
 -- ======================================================
 CREATE TABLE addons (
     addon_id INT AUTO_INCREMENT PRIMARY KEY,
-    event_type_id INT NOT NULL,
+    event_id INT NOT NULL,
     addon_name VARCHAR(100) NOT NULL,
-    description TEXT,
     price DECIMAL(10, 2) NOT NULL CHECK (price >= 0),
-    FOREIGN KEY (event_type_id)
-        REFERENCES event_types(event_type_id)
+    FOREIGN KEY (event_id)
+        REFERENCES event(event_id)
         ON DELETE CASCADE,
-    INDEX idx_event_type_id (event_type_id)
+    INDEX idx_event_id (event_id)
 );
 
 -- ======================================================
@@ -99,7 +98,7 @@ CREATE TABLE bookings (
     user_id INT NOT NULL,
     cart_id INT NOT NULL,
     venue_id INT NOT NULL,
-    event_type_id INT NOT NULL,
+    event_id INT NOT NULL,
     event_date DATE NOT NULL CHECK (event_date >= CURDATE()),
     event_time TIME NOT NULL,
     duration INT NOT NULL CHECK (duration > 0), -- in hours
@@ -115,13 +114,13 @@ CREATE TABLE bookings (
     FOREIGN KEY (venue_id)
         REFERENCES venues(venue_id)
         ON DELETE RESTRICT,
-    FOREIGN KEY (event_type_id)
-        REFERENCES event_types(event_type_id)
+    FOREIGN KEY (event_id)
+        REFERENCES event(event_id)
         ON DELETE RESTRICT,
     INDEX idx_user_id (user_id),
     INDEX idx_cart_id (cart_id),
     INDEX idx_venue_id (venue_id),
-    INDEX idx_event_type_id (event_type_id),
+    INDEX idx_event_id (event_id),
     INDEX idx_event_date (event_date),
     INDEX idx_status (status)
 );
@@ -194,81 +193,79 @@ CREATE TABLE reviews (
     INDEX idx_rating (rating)
 );
 
+-- Insert default admin user
+INSERT INTO users (name, email, password, role) VALUES 
+('Admin User', 'admin@tagpo.com', 'admin123', 'admin');
+
+INSERT INTO users (first_name, last_name, email, password, role) VALUES 
+('Jen', 'Ilao', 'jen@gmail.com', 'admin123', 'admin');
+
+-- Insert sample venues
+INSERT INTO venues (name, location, price, capacity, rating, reviews, description, tag, image_url) VALUES 
+(
+    'Paradiso Terrestre',
+    'Molino, Cavite City',
+    35000,
+    500,
+    4.8,
+    36,
+    'A stunning beachfront venue perfect for weddings and debuts with breathtaking sunset views.',
+    'Wedding · Debut',
+    'assets/images/paradiso1.jpg'
+),
+(
+    'Blue Gardens',
+    'Makati City',
+    60000,
+    250,
+    4.9,
+    52,
+    'Elegant garden venue ideal for proms and galas with modern amenities and exquisite landscaping.',
+    'Prom · Gala',
+    'assets/images/gardens1.jpg'
+),
+(
+    'The Green Lounge Events Place',
+    'Quezon City',
+    45000,
+    300,
+    4.7,
+    28,
+    'Contemporary event space suitable for birthday parties, corporate events, and various celebrations.',
+    'Birthday · Corporate',
+    'assets/images/lounge1.jpg'
+);
+
+--insert event
+INSERT INTO event (event_id, event_name, description) VALUES 
+(1, 'Wedding', 'A ceremony where two people are united in marriage.'),
+(2, 'Birthday', "A celebration of the anniversary of a person\'s birth."),
+(3, 'Corporate Event', 'An event organized by a company for its employees or clients.'),
+(4, 'Prom', 'A formal dance or gathering of high school students.'),
+(5, 'Gala', 'A social occasion with special entertainments or performances.')
+;
+
+
+-- Insert sample addon for Paradiso Terrestre
+INSERT INTO addon (event_id, name, price) VALUES 
+(1, 'Catering Service', 8000),
+(1, 'Bridal Car', 3500),
+(1, 'Floral Arrangement Package', 2500),
+(1, 'Wedding Stage Decoration', 4000),
+(1, 'Photo Booth', 2500);
+
+INSERT INTO addon (event_id, name, price) VALUES 
+(2, 'Catering Service', 6000),
+(2, 'Balloon & Themed Setup', 2000),
+(2, 'Photo Booth', 2500),
+(2, 'Clown / Event Host', 1500),
+(2, 'Cake Styling Setup', 1000);
+
+
+
 -- ======================================================
--- SAMPLE DATA FOR TESTING
+-- END OF SCHEMA
 -- ======================================================
-
--- Event Types
-INSERT INTO event_types (event_type_name, description) VALUES
-('Wedding', 'Classic wedding ceremony and reception'),
-('Corporate', 'Business conferences, team building, and corporate events'),
-('Birthday', 'Birthday parties and celebrations'),
-('Seminar', 'Educational seminars and workshops'),
-('Barangay Fiesta', 'Community celebrations and festivals');
-
--- Users
-INSERT INTO users (first_name, last_name, email, password, phone, role) VALUES
-('Maria', 'Santos', 'maria@email.com', SHA2('password123', 256), '09123456789', 'user'),
-('Juan', 'Cruz', 'juan@email.com', SHA2('password123', 256), '09987654321', 'user'),
-('Admin', 'User', 'admin@tagpo.com', SHA2('admin123', 256), '09111111111', 'admin');
-
--- Venues
-INSERT INTO venues (name, location, capacity, price_per_guest, description) VALUES
-('Grand Ballroom Manila', 'Makati, Metro Manila', 500, 2500.00, 'Luxurious ballroom with modern amenities'),
-('Beach Resort Boracay', 'Boracay, Aklan', 300, 1500.00, 'Beautiful beachfront venue perfect for weddings'),
-('Business Center BGC', 'Bonifacio Global City, Taguig', 200, 1200.00, 'State-of-the-art corporate event space');
-
--- Amenities
-INSERT INTO amenities (venue_id, amenity_name) VALUES
-(1, 'Air Conditioning'),
-(1, 'WiFi'),
-(1, 'Parking'),
-(1, 'Sound System'),
-(2, 'Beach Access'),
-(2, 'WiFi'),
-(2, 'Outdoor Pavilion'),
-(3, 'Meeting Rooms'),
-(3, 'Video Conference Equipment'),
-(3, 'WiFi');
-
--- Addons (grouped by event type)
-INSERT INTO addons (event_type_id, addon_name, description, price) VALUES
--- Wedding Addons
-(1, 'Catering Service', 'Full course meal for guests', 500.00),
-(1, 'DJ Service', '5-hour DJ service with MC', 3000.00),
-(1, 'Flower Arrangements', 'Decorative flowers for venue', 2000.00),
-(1, 'Photography', '8-hour photography coverage', 5000.00),
-(1, 'Videography', '8-hour video coverage with editing', 7000.00),
--- Corporate Addons
-(2, 'Catering Service', 'Breakfast/lunch for attendees', 400.00),
-(2, 'AV Equipment', 'Projector, screen, and sound system', 5000.00),
-(2, 'Event Coordinator', 'Professional event management for 8 hours', 4000.00),
-(2, 'Coffee Break Service', 'Morning and afternoon coffee breaks', 800.00),
--- Birthday Addons
-(3, 'Catering Service', 'Buffet and dessert service', 300.00),
-(3, 'Entertainment', 'Live band or DJ', 2000.00),
-(3, 'Cake & Decorations', 'Custom cake and balloon decorations', 1500.00),
-(3, 'Photo Booth', '3-hour photo booth with prints', 2500.00);
-
--- User 1 creates a cart
-INSERT INTO carts (user_id, status) VALUES (1, 'active');
-
--- Sample booking in cart
-INSERT INTO bookings (user_id, cart_id, venue_id, event_type_id, event_date, event_time, duration, guest_count, total_price, status) VALUES
-(1, 1, 1, 1, '2026-12-15', '18:00:00', 6, 150, 0, 'pending');
-
--- Add addons to booking
-INSERT INTO booking_addons (booking_id, addon_id, quantity, unit_price_at_booking) VALUES
-(1, 1, 1, 500.00), -- Catering
-(1, 2, 1, 3000.00), -- DJ
-(1, 3, 1, 2000.00); -- Flowers
-
--- Update total price: (venue_price * guest_count * duration) + addons
-UPDATE bookings SET total_price = (2500 * 150 * 6) + (500 + 3000 + 2000) WHERE booking_id = 1;
-
--- Sample payment
-INSERT INTO payments (booking_id, amount, payment_method, payment_status, card_holder_name, card_last_four) VALUES
-(1, 2255500.00, 'credit_card', 'pending', 'MARIA SANTOS', '4242');
 
 -- ======================================================
 -- USEFUL QUERIES
