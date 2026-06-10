@@ -57,11 +57,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             // 'ssss' na ngayon ang types dahil apat na strings ang ipapasa natin
             $stmt->bind_param("ssss", $firstName, $lastName, $email, $hashedPassword);
             $stmt->execute();
+            $newUserId = $conn->insert_id;
 
             // AUTO LOGIN
             // Mas maganda na hiwalay sila sa session para kung gusto mo tawagin 
             // ang "Hi, John!", gagamitin mo lang ang $_SESSION['current_user']['first_name']
             $_SESSION['current_user'] = [
+                'id' => $newUserId,
                 'first_name' => $firstName,
                 'last_name' => $lastName,
                 'email' => $email,

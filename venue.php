@@ -9,8 +9,8 @@ $_SESSION['last_activity'] = time();
 
 // Refresh cookie if logged in
 if (isLoggedIn()) {
-    $currentUser = getCurrentUser();
-    setcookie('user_session', $currentUser['email'], time() + (60 * 60 * 24 * 7), '/');
+  $currentUser = getCurrentUser();
+  setcookie('user_session', $currentUser['email'], time() + (60 * 60 * 24 * 7), '/');
 }
 
 
@@ -24,15 +24,16 @@ $venues = array_merge($hardcoded_venues, $session_venues);
 // STEP 5: Hanapin yung venue base sa ID na nasa URL (?id=xxxx)
 $selected = null;
 foreach ($venues as $v) {
-    if ($v['id'] == $id) {
-        $selected = $v;
-        break;
-    }
+  if ($v['id'] == $id) {
+    $selected = $v;
+    break;
+  }
 }
-function stars(float $rating): string {
-    $full  = (int) floor($rating);
-    $empty = 5 - $full;
-    return str_repeat('★', $full) . str_repeat('☆', $empty);
+function stars(float $rating): string
+{
+  $full  = (int) floor($rating);
+  $empty = 5 - $full;
+  return str_repeat('★', $full) . str_repeat('☆', $empty);
 }
 
 ?>
@@ -56,22 +57,33 @@ function stars(float $rating): string {
       border-radius: 6px;
       transition: background 0.2s ease;
     }
+
     .addon-group-item:hover {
       background: rgba(0, 0, 0, 0.05);
     }
+
     .addon-group-item input[type="checkbox"] {
       margin-right: 8px;
       cursor: pointer;
     }
+
     .addon-group-item label {
       cursor: pointer;
       font-weight: normal;
       width: 100%;
       margin-bottom: 0;
     }
+
     @keyframes slideOutRight {
-      from { transform: translateX(0); opacity: 1; }
-      to { transform: translateX(400px); opacity: 0; }
+      from {
+        transform: translateX(0);
+        opacity: 1;
+      }
+
+      to {
+        transform: translateX(400px);
+        opacity: 0;
+      }
     }
   </style>
 </head>
@@ -226,7 +238,40 @@ function stars(float $rating): string {
           <?php endforeach; ?>
         </div>
 
-      </div><div>
+        <div class="review-form mt-4 p-3 border rounded bg-light">
+
+          <h5 class="mb-3">Write a Review</h5>
+
+          <form action="submit_review.php" method="POST">
+
+            <input type="hidden" name="venue_id" value="<?php echo $selected['id']; ?>">
+
+            <div class="mb-2">
+              <label>Rating</label>
+              <select name="rating" class="form-control" required>
+                <option value="">Select rating</option>
+                <option value="5">★★★★★ (5)</option>
+                <option value="4">★★★★☆ (4)</option>
+                <option value="3">★★★☆☆ (3)</option>
+                <option value="2">★★☆☆☆ (2)</option>
+                <option value="1">★☆☆☆☆ (1)</option>
+              </select>
+            </div>
+
+            <div class="mb-2">
+              <label>Review</label>
+              <textarea name="review_text" class="form-control" rows="3" placeholder="Share your experience..." required></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-sm">
+              Submit Review
+            </button>
+
+          </form>
+        </div>
+
+      </div>
+      <div>
         <div class="booking-card">
           <h3>₱<?php echo number_format($selected['price']); ?></h3>
           <div class="price-sub">Starting package · Prices vary by event type</div>
@@ -423,169 +468,173 @@ function stars(float $rating): string {
       </div>
     <?php endif; ?>
 
-  </div><?php include 'includes/footer.php'; ?>
+    </div><?php include 'includes/footer.php'; ?>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-  function setTab(el) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    el.classList.add('active');
-  }
-  
-  function switchTab(el) {
-    document.querySelectorAll('.form-tab').forEach(t => t.classList.remove('active'));
-    el.classList.add('active');
-  }
-  
-  function adjustGuests(delta) {
-    const input = document.getElementById('guestCount');
-    if (!input) return;
-    const val   = parseInt(input.value) + delta;
-    input.value = Math.max(50, Math.min(parseInt(input.max), val));
-  }
-
-  function scrollToSection(id) {
-    if (!id) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-      const el = document.getElementById(id);
-      if (el) {
-        el.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start'
-        });
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      function setTab(el) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        el.classList.add('active');
       }
-    }
-  }
 
-  // LIGHTBOX FUNCTIONS
-  let currentImageIndex = 0;
-  let galleryImages = [];
+      function switchTab(el) {
+        document.querySelectorAll('.form-tab').forEach(t => t.classList.remove('active'));
+        el.classList.add('active');
+      }
 
-  function openLightbox(src) {
-    const lightbox = document.getElementById('lightbox');
-    const lightboxImg = document.getElementById('lightboxImg');
-    
-    galleryImages = Array.from(document.querySelectorAll('.gallery-img')).map(el => el.dataset.src);
-    currentImageIndex = galleryImages.indexOf(src);
-    
-    lightboxImg.src = src;
-    lightbox.classList.add('show');
-    document.body.style.overflow = 'hidden';
-  }
+      function adjustGuests(delta) {
+        const input = document.getElementById('guestCount');
+        if (!input) return;
+        const val = parseInt(input.value) + delta;
+        input.value = Math.max(50, Math.min(parseInt(input.max), val));
+      }
 
-  function closeLightbox(event) {
-    if (event) {
-      if (event.target.id === 'lightbox') {
-        // Backdrop click
-      } else if (!event.target.closest('.lightbox-content') && event.target.id !== 'lightbox') {
-        if (!event.target.classList.contains('lightbox-close') && 
-            !event.target.classList.contains('lightbox-prev') && 
-            !event.target.classList.contains('lightbox-next')) {
-          return;
+      function scrollToSection(id) {
+        if (!id) {
+          window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+          });
+        } else {
+          const el = document.getElementById(id);
+          if (el) {
+            el.scrollIntoView({
+              behavior: 'smooth',
+              block: 'start'
+            });
+          }
         }
       }
-    }
-    
-    const lightbox = document.getElementById('lightbox');
-    if (lightbox) {
-      lightbox.classList.remove('show');
-      document.body.style.overflow = 'auto';
-    }
-  }
 
-  function nextImage(event) {
-    event.stopPropagation();
-    currentImageIndex = (currentImageIndex + 1) % galleryImages.length;
-    document.getElementById('lightboxImg').src = galleryImages[currentImageIndex];
-  }
+      // LIGHTBOX FUNCTIONS
+      let currentImageIndex = 0;
+      let galleryImages = [];
 
-  function prevImage(event) {
-    event.stopPropagation();
-    currentImageIndex = (currentImageIndex - 1 + galleryImages.length) % galleryImages.length;
-    document.getElementById('lightboxImg').src = galleryImages[currentImageIndex];
-  }
+      function openLightbox(src) {
+        const lightbox = document.getElementById('lightbox');
+        const lightboxImg = document.getElementById('lightboxImg');
 
-  document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape') {
-      closeLightbox();
-    }
-  });
+        galleryImages = Array.from(document.querySelectorAll('.gallery-img')).map(el => el.dataset.src);
+        currentImageIndex = galleryImages.indexOf(src);
 
-  document.querySelector('.lightbox-close')?.addEventListener('click', closeLightbox);
+        lightboxImg.src = src;
+        lightbox.classList.add('show');
+        document.body.style.overflow = 'hidden';
+      }
 
-  // Initialize date input with minimum date (today)
-  function initDatePicker() {
-    const dateInput = document.getElementById('event_date');
-    if (dateInput) {
-      const today = new Date();
-      const minDate = today.toISOString().split('T')[0];
-      dateInput.setAttribute('min', minDate);
-      
-      dateInput.addEventListener('change', function() {
-        const selectedDate = new Date(this.value);
-        const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-        
-        if (selectedDate < todayDate) {
-          alert('⚠️ Past dates are not allowed. Please select today or a future date.');
-          this.value = '';
-        }
-      });
-      
-      dateInput.addEventListener('blur', function() {
-        if (this.value) {
-          const selectedDate = new Date(this.value);
-          const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-          
-          if (selectedDate < todayDate) {
-            alert('⚠️ Past dates are not allowed. Please select today or a future date.');
-            this.value = '';
+      function closeLightbox(event) {
+        if (event) {
+          if (event.target.id === 'lightbox') {
+            // Backdrop click
+          } else if (!event.target.closest('.lightbox-content') && event.target.id !== 'lightbox') {
+            if (!event.target.classList.contains('lightbox-close') &&
+              !event.target.classList.contains('lightbox-prev') &&
+              !event.target.classList.contains('lightbox-next')) {
+              return;
+            }
           }
         }
-      });
-    }
-  }
 
-  // Dynamic Add-ons Filtering Function
-  function initAddonFilters() {
-    const eventSelect = document.querySelector('select[name="event_type"]');
-    const addonItems = document.querySelectorAll('.addon-group-item');
-    const noEventMessage = document.getElementById('no-event-message');
+        const lightbox = document.getElementById('lightbox');
+        if (lightbox) {
+          lightbox.classList.remove('show');
+          document.body.style.overflow = 'auto';
+        }
+      }
 
-    if (eventSelect) {
-      eventSelect.addEventListener('change', function() {
-        const selectedEvent = this.value;
-        let countVisible = 0;
+      function nextImage(event) {
+        event.stopPropagation();
+        currentImageIndex = (currentImageIndex + 1) % galleryImages.length;
+        document.getElementById('lightboxImg').src = galleryImages[currentImageIndex];
+      }
 
-        addonItems.forEach(item => {
-          const checkbox = item.querySelector('input[type="checkbox"]');
-          if (checkbox) checkbox.checked = false;
+      function prevImage(event) {
+        event.stopPropagation();
+        currentImageIndex = (currentImageIndex - 1 + galleryImages.length) % galleryImages.length;
+        document.getElementById('lightboxImg').src = galleryImages[currentImageIndex];
+      }
 
-          if (item.getAttribute('data-event') === selectedEvent) {
-            item.style.display = 'block';
-            countVisible++;
-          } else {
-            item.style.display = 'none';
-          }
-        });
-
-        if (noEventMessage) {
-          if (countVisible > 0) {
-            noEventMessage.style.display = 'none';
-          } else {
-            noEventMessage.style.display = 'block';
-          }
+      document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+          closeLightbox();
         }
       });
-    }
-  }
 
-  // Initialize on page load
-  document.addEventListener('DOMContentLoaded', function() {
-    initDatePicker();
-    initAddonFilters();
-  });
-</script>
+      document.querySelector('.lightbox-close')?.addEventListener('click', closeLightbox);
+
+      // Initialize date input with minimum date (today)
+      function initDatePicker() {
+        const dateInput = document.getElementById('event_date');
+        if (dateInput) {
+          const today = new Date();
+          const minDate = today.toISOString().split('T')[0];
+          dateInput.setAttribute('min', minDate);
+
+          dateInput.addEventListener('change', function() {
+            const selectedDate = new Date(this.value);
+            const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+            if (selectedDate < todayDate) {
+              alert('⚠️ Past dates are not allowed. Please select today or a future date.');
+              this.value = '';
+            }
+          });
+
+          dateInput.addEventListener('blur', function() {
+            if (this.value) {
+              const selectedDate = new Date(this.value);
+              const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+              if (selectedDate < todayDate) {
+                alert('⚠️ Past dates are not allowed. Please select today or a future date.');
+                this.value = '';
+              }
+            }
+          });
+        }
+      }
+
+      // Dynamic Add-ons Filtering Function
+      function initAddonFilters() {
+        const eventSelect = document.querySelector('select[name="event_type"]');
+        const addonItems = document.querySelectorAll('.addon-group-item');
+        const noEventMessage = document.getElementById('no-event-message');
+
+        if (eventSelect) {
+          eventSelect.addEventListener('change', function() {
+            const selectedEvent = this.value;
+            let countVisible = 0;
+
+            addonItems.forEach(item => {
+              const checkbox = item.querySelector('input[type="checkbox"]');
+              if (checkbox) checkbox.checked = false;
+
+              if (item.getAttribute('data-event') === selectedEvent) {
+                item.style.display = 'block';
+                countVisible++;
+              } else {
+                item.style.display = 'none';
+              }
+            });
+
+            if (noEventMessage) {
+              if (countVisible > 0) {
+                noEventMessage.style.display = 'none';
+              } else {
+                noEventMessage.style.display = 'block';
+              }
+            }
+          });
+        }
+      }
+
+      // Initialize on page load
+      document.addEventListener('DOMContentLoaded', function() {
+        initDatePicker();
+        initAddonFilters();
+      });
+    </script>
 
 </body>
+
 </html>

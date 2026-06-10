@@ -11,7 +11,8 @@ USE tagpo_db;
 -- 1. USERS TABLE
 -- ======================================================
 CREATE TABLE users (
-    user_id INT AUTO_INCREMENT PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100),
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     email VARCHAR(100) UNIQUE NULL, -- NULL for anonymous users during checkout
@@ -35,12 +36,15 @@ CREATE TABLE event (
 -- 3. VENUES TABLE (Normalized - no denormalized fields)
 -- ======================================================
 CREATE TABLE venues (
-    venue_id INT AUTO_INCREMENT PRIMARY KEY,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
     location VARCHAR(200) NOT NULL,
     capacity INT NOT NULL CHECK (capacity > 0),
     price DECIMAL(10, 2) NOT NULL CHECK (price >= 0),
+    rating DECIMAL(3, 1) DEFAULT 0,
+    reviews INT DEFAULT 0,
     description TEXT,
+    tag VARCHAR(100),
     image_url VARCHAR(500),
 
     INDEX idx_location (location),
@@ -56,7 +60,7 @@ CREATE TABLE amenities (
     venue_id INT NOT NULL,
     amenity_name VARCHAR(100) NOT NULL,
     FOREIGN KEY (venue_id)
-        REFERENCES venues(venue_id)
+        REFERENCES venues(id)
         ON DELETE CASCADE,
     INDEX idx_venue_id (venue_id)
 );
@@ -83,7 +87,7 @@ CREATE TABLE carts (
     user_id INT NOT NULL,
     status ENUM('active', 'checked_out', 'abandoned') DEFAULT 'active',
     FOREIGN KEY (user_id)
-        REFERENCES users(user_id)
+        REFERENCES users(id)
         ON DELETE CASCADE,
     INDEX idx_user_id (user_id),
     INDEX idx_status (status)
@@ -106,13 +110,13 @@ CREATE TABLE bookings (
     total_price DECIMAL(10, 2) NOT NULL DEFAULT 0,
     status ENUM('pending', 'confirmed', 'completed', 'cancelled') DEFAULT 'pending',
     FOREIGN KEY (user_id)
-        REFERENCES users(user_id)
+        REFERENCES users(id)
         ON DELETE CASCADE,
     FOREIGN KEY (cart_id)
         REFERENCES carts(cart_id)
         ON DELETE CASCADE,
     FOREIGN KEY (venue_id)
-        REFERENCES venues(venue_id)
+        REFERENCES venues(id)
         ON DELETE RESTRICT,
     FOREIGN KEY (event_id)
         REFERENCES event(event_id)
@@ -183,10 +187,10 @@ CREATE TABLE reviews (
     review_text TEXT,
     review_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id)
-        REFERENCES users(user_id)
+        REFERENCES users(id)
         ON DELETE CASCADE,
     FOREIGN KEY (venue_id)
-        REFERENCES venues(venue_id)
+        REFERENCES venues(id)
         ON DELETE CASCADE,
     INDEX idx_user_id (user_id),
     INDEX idx_venue_id (venue_id),
@@ -194,11 +198,9 @@ CREATE TABLE reviews (
 );
 
 -- Insert default admin user
-INSERT INTO users (name, email, password, role) VALUES 
-('Admin User', 'admin@tagpo.com', 'admin123', 'admin');
+INSERT INTO users (name, first_name, last_name, email, password, role) VALUES 
+('Admin User', 'Admin', 'User', 'admin@tagpo.com', 'admin123', 'admin');
 
-INSERT INTO users (first_name, last_name, email, password, role) VALUES 
-('Jen', 'Ilao', 'jen@gmail.com', 'admin123', 'admin');
 
 -- Insert sample venues
 INSERT INTO venues (name, location, price, capacity, rating, reviews, description, tag, image_url) VALUES 
@@ -247,14 +249,14 @@ INSERT INTO event (event_id, event_name, description) VALUES
 
 
 -- Insert sample addon for Paradiso Terrestre
-INSERT INTO addon (event_id, name, price) VALUES 
+INSERT INTO addons (event_id, addon_name, price) VALUES 
 (1, 'Catering Service', 8000),
 (1, 'Bridal Car', 3500),
 (1, 'Floral Arrangement Package', 2500),
 (1, 'Wedding Stage Decoration', 4000),
 (1, 'Photo Booth', 2500);
 
-INSERT INTO addon (event_id, name, price) VALUES 
+INSERT INTO addons (event_id, addon_name, price) VALUES 
 (2, 'Catering Service', 6000),
 (2, 'Balloon & Themed Setup', 2000),
 (2, 'Photo Booth', 2500),

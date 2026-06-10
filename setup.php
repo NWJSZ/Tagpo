@@ -49,6 +49,8 @@ $sql_queries = array(
     "CREATE TABLE IF NOT EXISTS users (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
+        first_name VARCHAR(100),
+        last_name VARCHAR(100),
         email VARCHAR(100) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
         role ENUM('user', 'admin') DEFAULT 'user',
@@ -128,6 +130,21 @@ $sql_queries = array(
         INDEX idx_user (user_id),
         INDEX idx_status (status),
         INDEX idx_event_date (event_date)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+    // Reviews Table
+    "CREATE TABLE IF NOT EXISTS reviews (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        venue_id INT NOT NULL,
+        rating INT NOT NULL,
+        review_text TEXT NOT NULL,
+        review_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY fk_review_user (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY fk_review_venue (venue_id) REFERENCES venues(id) ON DELETE CASCADE,
+        INDEX idx_review_venue (venue_id),
+        INDEX idx_review_user (user_id),
+        INDEX idx_review_rating (rating)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
 );
 
@@ -139,6 +156,23 @@ foreach ($sql_queries as $index => $query) {
     }
 }
 
+// Make older local databases compatible with the current login/signup code.
+$columnChecks = [
+    'first_name' => "ALTER TABLE users ADD COLUMN first_name VARCHAR(100) AFTER name",
+    'last_name' => "ALTER TABLE users ADD COLUMN last_name VARCHAR(100) AFTER first_name",
+];
+
+foreach ($columnChecks as $column => $alterSql) {
+    $columnResult = $conn->query("SHOW COLUMNS FROM users LIKE '{$column}'");
+    if ($columnResult && $columnResult->num_rows == 0) {
+        if ($conn->query($alterSql) === TRUE) {
+            echo "<p style='color:green;'>âœ… Added users.{$column} column</p>";
+        } else {
+            echo "<p style='color:orange;'>âš ï¸ Could not add users.{$column}: " . $conn->error . "</p>";
+        }
+    }
+}
+
 // Step 5: Create Admin User
 echo "<p>Step 5: Creating admin user...</p>";
 $admin_email = 'admin@tagpo.com';
@@ -146,7 +180,7 @@ $admin_password = password_hash('admin123', PASSWORD_DEFAULT);
 
 $check_user = $conn->query("SELECT id FROM users WHERE email = '{$admin_email}'");
 if ($check_user->num_rows == 0) {
-    $insert_admin = "INSERT INTO users (name, email, password, role) VALUES ('Admin User', '{$admin_email}', '{$admin_password}', 'admin')";
+    $insert_admin = "INSERT INTO users (name, first_name, last_name, email, password, role) VALUES ('Admin User', 'Admin', 'User', '{$admin_email}', '{$admin_password}', 'admin')";
     if ($conn->query($insert_admin) === TRUE) {
         echo "<p style='color:green;'>✅ Admin user created (email: admin@tagpo.com, password: admin123)</p>";
     } else {
