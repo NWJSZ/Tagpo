@@ -145,12 +145,13 @@ CREATE TABLE bookings (
 -- =====================================================
 
 CREATE TABLE booking_addons (
+    booking_addon_id INT AUTO_INCREMENT PRIMARY KEY,
     booking_id INT NOT NULL,
     addon_id INT NOT NULL,
 
     quantity INT NOT NULL DEFAULT 1,
 
-    unit_price_at_booking DECIMAL(10,2) NOT NULL,
+    unit_price DECIMAL(10,2) NOT NULL,
 
     PRIMARY KEY (booking_id, addon_id),
 
@@ -172,7 +173,7 @@ CREATE TABLE booking_addons (
 CREATE TABLE payments (
     payment_id INT AUTO_INCREMENT PRIMARY KEY,
 
-    booking_id INT NOT NULL,
+    cart_id INT NOT NULL,
 
     amount DECIMAL(10,2) NOT NULL,
 
@@ -194,8 +195,8 @@ CREATE TABLE payments (
     payment_date DATETIME
     DEFAULT CURRENT_TIMESTAMP,
 
-    FOREIGN KEY (booking_id)
-        REFERENCES bookings(booking_id)
+    FOREIGN KEY (cart_id)
+        REFERENCES carts(cart_id)
         ON DELETE CASCADE
         ON UPDATE CASCADE
 );
@@ -265,8 +266,6 @@ CREATE TABLE reviews (
         ON DELETE CASCADE
         ON UPDATE CASCADE
 );
-
-
 
 -- Insert default admin user
 INSERT INTO users (first_name, last_name, email, password, role) VALUES 
