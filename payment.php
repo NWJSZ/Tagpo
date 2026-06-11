@@ -5,440 +5,487 @@ require_once 'config/app.php';
 
 $baseUrl = getBaseUrl();
 
-// Update activity
 $_SESSION['last_activity'] = time();
-
-// Refresh cookie
 if (isset($_SESSION['current_user'])) {
-    setcookie('user_session', $_SESSION['current_user']['email'], time() + (60 * 60 * 24 * 7), '/');
+    setcookie('user_session', $_SESSION['current_user']['email'], time() + (86400 * 7), '/');
 }
 
-// Check if user session expired
-if (!isset($_COOKIE['user_session']) && isset($_SESSION['current_user'])) {
-    session_destroy();
-    $_SESSION = [];
-    header("Location: index.php?expired=true");
+if (!isLoggedIn()) {
+    header('Location: auth/login.php');
     exit();
 }
 
 /* ==========================================================
-   DYNAMIC CART DATA BINDING
+   BUILD PAYMENT DATA FROM SELECTED SESSION-CART ITEMS
    ========================================================== */
 $venueNamesArray = [];
-$venuePrice = 0;
-$eventType = '';
-$eventDate = '';
-$eventTime = '';
-$duration = '';
-$guestCount = 0;
-$addons = [];
+$venuePrice      = 0;
+$eventType       = '';
+$eventDate       = '';
+$eventTime       = '';
+$duration        = '';
+$guestCount      = 0;
+$addons          = [];
+$selectedBookingIds = [];
+$cartIdForPayment   = null;
 
-if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['selected_items']) && is_array($_POST['selected_items'])) {
-    
-    foreach ($_POST['selected_items'] as $index) {
-        if (isset($_SESSION['cart'][$index])) {
-            $item = $_SESSION['cart'][$index];
-            
-            $venueNamesArray[] = $item['venue_name'];
-            $venuePrice += (int)($item['venue_price'] ?? 35000);
-            
-            if (empty($eventType)) $eventType = $item['event_type'] ?? 'General Event';
-            if (empty($eventDate)) $eventDate = $item['event_date'] ?? date('Y-m-d');
-            if (empty($eventTime)) $eventTime = $item['event_time'] ?? '18:00';
-            if (empty($duration)) $duration = $item['duration'] ?? '4 hours';
-            
-            $guestCount += (int)($item['guests'] ?? 50);
-            
-            if (!empty($item['addons']) && is_array($item['addons'])) {
-                $addons = array_merge($addons, $item['addons']);
-            }
-        }
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['pay_now'])) {
+    // Coming from cart.php with selected_items[]
+    $selectedIndices = $_POST['selected_items'] ?? [];
+
+    foreach ($selectedIndices as $index) {
+        $index = (int) $index;
+        if (!isset($_SESSION['cart'][$index])) continue;
+
+        $item = $_SESSION['cart'][$index];
+        $venueNamesArray[]    = $item['venue_name'];
+        $venuePrice          += (float) ($item['venue_price'] ?? 0);
+        if (empty($eventType))  $eventType  = $item['event_type'] ?? '';
+        if (empty($eventDate))  $eventDate  = $item['event_date'] ?? '';
+        if (empty($eventTime))  $eventTime  = $item['event_time'] ?? '';
+        if (empty($duration))   $duration   = $item['duration']   ?? '';
+        $guestCount           += (int) ($item['guests'] ?? 0);
+        if (!empty($item['addons'])) $addons = array_merge($addons, $item['addons']);
+        if (!empty($item['booking_id'])) $selectedBookingIds[] = (int) $item['booking_id'];
+        if (!$cartIdForPayment && !empty($item['cart_id'])) $cartIdForPayment = (int) $item['cart_id'];
     }
-    
-    $venueName = implode(", ", $venueNamesArray);
-    $addons = array_unique($addons);
+
+    $venueName = implode(', ', $venueNamesArray);
+    $addons    = array_unique($addons);
 
 } else {
-    $venueName   = $_POST['venue_name'] ?? $_GET['venue_name'] ?? 'Paradiso Terrestre';
-    $venuePrice  = (int) ($_POST['venue_price'] ?? $_GET['venue_price'] ?? 35000);
-    $eventType   = $_POST['event_type'] ?? $_GET['event_type'] ?? 'General Event';
-    $eventDate   = $_POST['event_date'] ?? $_GET['date'] ?? date('Y-m-d');
-    $eventTime   = $_POST['event_time'] ?? $_GET['time'] ?? '18:00';
-    $duration    = $_POST['duration'] ?? $_GET['duration'] ?? '4 hours';
-    $guestCount  = (int) ($_POST['guests'] ?? $_GET['guests'] ?? 50);
-    $addons      = $_POST['addons'] ?? $_GET['addons'] ?? [];
+    // Fallback: GET params (from checkout.php redirect) or re-POST
+    $venueName  = $_GET['venue_name'] ?? $_POST['venue_name'] ?? '';
+    $venuePrice = (float) ($_GET['venue_price'] ?? $_POST['venue_price'] ?? 0);
+    $eventType  = $_GET['event_type']  ?? $_POST['event_type']  ?? '';
+    $eventDate  = $_GET['date']        ?? $_POST['event_date']  ?? '';
+    $eventTime  = $_GET['time']        ?? $_POST['event_time']  ?? '';
+    $duration   = $_GET['duration']    ?? $_POST['duration']    ?? '';
+    $guestCount = (int) ($_GET['guests'] ?? $_POST['guests'] ?? 0);
+    $addons     = $_GET['addons']      ?? $_POST['addons']      ?? [];
 }
 
-$customerName = $_SESSION['current_user']['name'] ?? $_POST['guest_name'] ?? $_GET['name'] ?? 'Guest';
-
-/* =========================================
-   NUMERIC ARRAY & CALCULATION WITH PRICING
-   ========================================= */
-$fees = [$venuePrice]; 
-$feeLabels = ["Venue Price"];
-
-// Guest Count Fee - higit sa 100 guests
-if ($guestCount > 100) {
-    $fees[] = 5000;
-    $feeLabels[] = "Guest Count Fee (>100 pax)";
-}
-
-// Full Day Fee
-if (strtolower($duration) === 'full day') {
-    $fees[] = 10000;
-    $feeLabels[] = "Full Day Fee";
-}
-
-// Add-ons Fees calculation base sa package rules mo
+// ── Addon price lookup from DB (single query) ────────────────────────────────
+$addonRows = [];
 if (!empty($addons)) {
-    foreach ($addons as $addon) {
-        $addonPrice = 0;
-        
-        // Dynamic matching depende sa Event Type at Add-on Name
-        if ($eventType === 'Wedding') {
-            if ($addon === "Catering Service" || $addon === "Catering") $addonPrice = 8000;
-            elseif ($addon === "Bridal Car") $addonPrice = 3500;
-            elseif ($addon === "Floral Arrangement Package") $addonPrice = 2500;
-            elseif ($addon === "Wedding Stage Decoration") $addonPrice = 4000;
-            elseif ($addon === "Photo Booth") $addonPrice = 2500;
-        } elseif ($eventType === 'Birthday' || $eventType === 'Birthday / Debut') {
-            if ($addon === "Catering Service" || $addon === "Catering") $addonPrice = 6000;
-            elseif ($addon === "Balloon & Themed Setup") $addonPrice = 2000;
-            elseif ($addon === "Photo Booth") $addonPrice = 2500;
-            elseif ($addon === "Clown / Event Host") $addonPrice = 1500;
-            elseif ($addon === "Cake Styling Setup") $addonPrice = 1000;
-        } elseif ($eventType === 'Prom/Ball' || $eventType === 'Prom / Ball') {
-            if ($addon === "DJ Booth") $addonPrice = 3000;
-            elseif ($addon === "LED Lights Setup") $addonPrice = 2500;
-            elseif ($addon === "Red Carpet Entrance Setup") $addonPrice = 1500;
-            elseif ($addon === "Photo Booth") $addonPrice = 2500;
-            elseif ($addon === "Emcee / Host") $addonPrice = 2000;
-        } elseif ($eventType === 'Corporate Event') {
-            if ($addon === "Projector & Screen Setup") $addonPrice = 2000;
-            elseif ($addon === "Sound System") $addonPrice = 3000;
-            elseif ($addon === "Microphones & Stage Setup") $addonPrice = 2500;
-            elseif ($addon === "Coffee Break Catering") $addonPrice = 5000;
-            elseif ($addon === "LED Display Wall") $addonPrice = 8000;
-        } elseif ($eventType === 'Reunion') {
-            if ($addon === "Buffet Catering" || $addon === "Catering") $addonPrice = 7000;
-            elseif ($addon === "Photo Booth") $addonPrice = 2500;
-            elseif ($addon === "Memory Slideshow / Projector") $addonPrice = 1500;
-            elseif ($addon === "Event Host / Emcee") $addonPrice = 2000;
-        } elseif ($eventType === 'Anniversary') {
-            if ($addon === "Romantic Venue Styling") $addonPrice = 3000;
-            elseif ($addon === "Floral Arrangement Package") $addonPrice = 2000;
-            elseif ($addon === "Candle & Lights Setup") $addonPrice = 1500;
-            elseif ($addon === "Live Acoustic Music") $addonPrice = 5000;
-        }
-
-        // Fallback pricing kung walang nag-match sa listahan mo para hindi maging error/zero
-        if ($addonPrice === 0) {
-            if ($addon === "Photo Booth") $addonPrice = 2500;
-            elseif ($addon === "Catering Service" || $addon === "Catering") $addonPrice = 6000;
-            else $addonPrice = 2000; 
-        }
-        
-        $fees[] = $addonPrice;
-        $feeLabels[] = "$addon Add-on";
+    $placeholders = implode(',', array_fill(0, count($addons), '?'));
+    $types = str_repeat('s', count($addons));
+    $stmt  = $conn->prepare(
+        "SELECT addon_name, price FROM addons WHERE addon_name IN ($placeholders)"
+    );
+    $stmt->bind_param($types, ...$addons);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $addonRows[$row['addon_name']] = (float) $row['price'];
     }
+    $stmt->close();
 }
 
-$total = 0;
-for ($i = 0; $i < count($fees); $i++) {
-    $total += $fees[$i];
+// ── Build fee breakdown ───────────────────────────────────────────────────────
+$fees       = [(float) $venuePrice];
+$feeLabels  = ['Venue Price'];
+
+foreach ($addons as $addon) {
+    $price = $addonRows[$addon] ?? 2000.00; // sensible fallback
+    $fees[]      = $price;
+    $feeLabels[] = $addon . ' Add-on';
 }
 
-// BREAKDOWN DISPLAYER
-$breakdownItems = [];
-$breakdownItems["Venue"] = $venueName;
-$breakdownItems["Event Type"] = $eventType;
-$breakdownItems["Date"] = $eventDate;
-$breakdownItems["Time"] = $eventTime;
-$breakdownItems["Duration"] = $duration;
-$breakdownItems["Guests"] = $guestCount . " pax";
+$total = array_sum($fees);
 
-foreach ($feeLabels as $index => $label) {
-    $breakdownItems[$label] = "₱" . number_format($fees[$index]);
+$customerName = '';
+$user = getCurrentUser();
+if ($user) {
+    $customerName = trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''));
 }
 
-/* =========================
-   DO WHILE (SIMULATION)
-========================= */
-$attempt = 1;
-do {
-    $processStatus = "Payment attempt #$attempt initialized";
-    $attempt++;
-} while ($attempt < 2);
+$methodMsg   = '';
 
-/* =========================
-   OOP CLASS
-========================= */
-class Payment {
-    private $firstName, $lastName, $email, $method, $card;
-
-    public function __construct($firstName, $lastName, $email) {
-        $this->firstName = $firstName;
-        $this->lastName  = $lastName;
-        $this->email     = $email;
-    }
-
-    public function setMethod($method) { $this->method    = $method; }
-    public function setCard($card)     { $this->card      = $card; }
-
-    public function getCardLast4() {
-        return !empty($this->card) ? substr($this->card, -4) : "N/A";
-    }
-
-    public function getSummary($total, $venueName, $venuePrice, $customerName) {
-        return $customerName . " has successfully booked " . $venueName . 
-               " (₱" . number_format($venuePrice) . ") for ₱" . number_format($total);
-    }
-}
-
-$methodMsg = "";
-
-/* =========================================
-   FORM PROCESSING
-========================================= */
-if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['pay_now'])) {
+/* ==========================================================
+   PROCESS PAYMENT SUBMISSION
+   ========================================================== */
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
 
     $firstName = trim($_POST['first_name'] ?? '');
-    $lastName  = trim($_POST['last_name'] ?? '');
-    $email     = trim($_POST['email'] ?? '');
-    $phone     = str_replace(' ', '', trim($_POST['phone'] ?? ''));
+    $lastName  = trim($_POST['last_name']  ?? '');
+    $email     = trim($_POST['email']      ?? '');
+    $phone     = preg_replace('/\D/', '', $_POST['phone'] ?? '');
     $method    = $_POST['method'] ?? '';
-    
-    if (empty($phone) || strlen($phone) !== 10 || !is_numeric($phone)) {
-        die("Phone number is required and must be exactly 10 digits.");
-    }
 
-    if (empty($method)) {
-        die("Please select a valid payment method.");
-    }
+    // Re-compute total from hidden fields passed back through the form
+    $formVenuePrice = (float) ($_POST['venue_price'] ?? $venuePrice);
+    $formAddons     = is_array($_POST['form_addons'] ?? null) ? $_POST['form_addons'] : $addons;
+    $formTotal      = (float) ($_POST['form_total']  ?? $total);
 
-    $cardRaw = '';
-    if ($method === 'card') {
-        $cardRaw = $_POST['card_number'] ?? '';
-        $card = str_replace(' ', '', $cardRaw);
-        $expiry = trim($_POST['expiry'] ?? '');
-        $cvv = trim($_POST['cvv'] ?? '');
-        
-        if (strlen($card) !== 16 || !is_numeric($card)) {
-            die("Card number required for card payment and must be exactly 16 digits.");
-        }
-        if (!preg_match('/^(0[1-9]|1[0-2])\/[2-9][6-9]$/', $expiry)) {
-            die("Invalid Expiry Date format or Year must be 26 or higher.");
-        }
-        if (strlen($cvv) !== 3 || !is_numeric($cvv)) {
-            die("CVV must be exactly 3 digits.");
-        }
-    }
-
+    // Validation
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        die("Invalid email format.");
+        die('Invalid email address.');
+    }
+    if (strlen($phone) !== 10) {
+        die('Phone number must be exactly 10 digits.');
+    }
+    if (empty($method)) {
+        die('Please select a payment method.');
     }
 
-    switch ($method) {
-        case "card":   $methodMsg = "Credit Card Payment"; break;
-        case "gcash":  $methodMsg = "GCash Payment"; break;
-        case "paypal": $methodMsg = "PayPal Payment"; break;
-        default:       $methodMsg = "Unknown Method";
+    // Card-specific validation
+    $cardHolderName   = '';
+    $cardLastFour     = '';
+    $cardExpiryMonth  = 0;
+    $cardExpiryYear   = 0;
+    $gcashPhone       = '';
+    $gcashAccountName = '';
+
+    if ($method === 'card') {
+        $cardRaw = preg_replace('/\D/', '', $_POST['card_number'] ?? '');
+        $expiry  = trim($_POST['expiry'] ?? '');
+        $cvv     = trim($_POST['cvv']    ?? '');
+
+        if (strlen($cardRaw) !== 16) die('Card number must be 16 digits.');
+        if (!preg_match('/^(0[1-9]|1[0-2])\/\d{2}$/', $expiry)) die('Invalid expiry format (MM/YY).');
+        if (strlen($cvv) !== 3) die('CVV must be 3 digits.');
+
+        $cardHolderName  = trim($firstName . ' ' . $lastName);
+        $cardLastFour    = substr($cardRaw, -4);
+        [$monthStr, $yearStr] = explode('/', $expiry);
+        $cardExpiryMonth = (int) $monthStr;
+        $cardExpiryYear  = (int) ('20' . $yearStr);
+
+    } elseif ($method === 'gcash') {
+        $gcashAccountName = trim($_POST['gcash_name']   ?? '');
+        $gcashPhone       = preg_replace('/\D/', '', $_POST['gcash_number'] ?? '');
+        if (strlen($gcashPhone) !== 11) die('GCash number must be 11 digits.');
     }
 
-    $payment = new Payment($firstName, $lastName, $email);
-    $payment->setMethod($method);
-    $payment->setCard($cardRaw ?? '');
+    $dbMethod = match($method) {
+        'card'  => 'credit_card',
+        'gcash' => 'gcash',
+        default => 'credit_card',
+    };
 
-    $_SESSION['payment'] = [
-        "summary" => $payment->getSummary($total, $venueName, $venuePrice, $customerName),
-        "card" => ($method === "card") ? $payment->getCardLast4() : null,
-        "method" => $methodMsg
-    ];
+    $methodMsg = match($method) {
+        'card'  => 'Credit Card',
+        'gcash' => 'GCash',
+        default => 'Credit Card',
+    };
 
-    $_SESSION['receipt_data'] = [
-        'invoice_number' => strtoupper(uniqid('TP-')),
-        'customer_name' => $customerName,
-        'first_name' => $firstName,
-        'last_name' => $lastName,
-        'email' => $email,
-        'phone' => '+63' . $phone,
-        'venue_name' => $venueName,
-        'venue_price' => $venuePrice,
-        'event_type' => $eventType,
-        'event_date' => $eventDate,
-        'event_time' => $eventTime,
-        'duration' => $duration,
-        'guest_count' => $guestCount,
-        'addons' => $addons,
-        'fee_labels' => $feeLabels,
-        'fees' => $fees,
-        'total' => $total,
-        'payment_method' => $methodMsg,
-        'card_last4' => ($method === 'card') ? $payment->getCardLast4() : null,
-        'timestamp' => time()
-    ];
+    $transactionId = strtoupper(uniqid('TXN-'));
 
-    // Kapag nakapag-bayad na, tanggalin na sa cart session yung mga binayaran
-    if (isset($_POST['selected_items']) && is_array($_POST['selected_items'])) {
-        foreach ($_POST['selected_items'] as $index) {
-            unset($_SESSION['cart'][$index]);
+    // ── DB writes inside a transaction ───────────────────────────────────────
+    $conn->begin_transaction();
+    try {
+        // 1. Ensure there is an active cart in the DB for this user
+        $uid = (int) $user['id'];
+
+        // Re-read selected booking IDs passed as hidden fields
+        $hiddenBookingIds = [];
+        if (!empty($_POST['booking_ids'])) {
+            foreach ((array) $_POST['booking_ids'] as $bid) {
+                $hiddenBookingIds[] = (int) $bid;
+            }
         }
-        $_SESSION['cart'] = array_values($_SESSION['cart']); // re-index cart array
+
+        // Derive cart_id from the first booking (if available)
+        $dbCartId = null;
+        if (!empty($hiddenBookingIds)) {
+            $stmt = $conn->prepare(
+                "SELECT cart_id FROM bookings WHERE booking_id = ? AND user_id = ? LIMIT 1"
+            );
+            $stmt->bind_param('ii', $hiddenBookingIds[0], $uid);
+            $stmt->execute();
+            $row = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            if ($row) $dbCartId = (int) $row['cart_id'];
+        }
+
+        // Fallback: get active cart
+        if (!$dbCartId) {
+            $stmt = $conn->prepare(
+                "SELECT cart_id FROM carts WHERE user_id = ? AND status = 'active' LIMIT 1"
+            );
+            $stmt->bind_param('i', $uid);
+            $stmt->execute();
+            $row = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            $dbCartId = $row ? (int) $row['cart_id'] : null;
+        }
+
+        // If still none, create one
+        if (!$dbCartId) {
+            $stmt = $conn->prepare("INSERT INTO carts (user_id, status) VALUES (?, 'active')");
+            $stmt->bind_param('i', $uid);
+            $stmt->execute();
+            $dbCartId = (int) $conn->insert_id;
+            $stmt->close();
+        }
+
+        // 2. Insert into payments
+        $stmt = $conn->prepare(
+            "INSERT INTO payments
+                (cart_id, amount, payment_method, payment_status, transaction_id, payment_date)
+             VALUES (?, ?, ?, 'paid', ?, NOW())"
+        );
+        $stmt->bind_param('idss', $dbCartId, $formTotal, $dbMethod, $transactionId);
+        $stmt->execute();
+        $paymentId = (int) $conn->insert_id;
+        $stmt->close();
+
+        // 3. Insert into card_payments or gcash_payments
+        if ($method === 'card') {
+            $stmt = $conn->prepare(
+                "INSERT INTO card_payments
+                    (payment_id, card_holder_name, card_last_four, card_expiry_month, card_expiry_year)
+                 VALUES (?, ?, ?, ?, ?)"
+            );
+            $stmt->bind_param('issii',
+                $paymentId, $cardHolderName, $cardLastFour,
+                $cardExpiryMonth, $cardExpiryYear
+            );
+            $stmt->execute();
+            $stmt->close();
+
+        } elseif ($method === 'gcash') {
+            $stmt = $conn->prepare(
+                "INSERT INTO gcash_payments (payment_id, gcash_phone_number, gcash_account_name)
+                 VALUES (?, ?, ?)"
+            );
+            $stmt->bind_param('iss', $paymentId, $gcashPhone, $gcashAccountName);
+            $stmt->execute();
+            $stmt->close();
+        }
+
+        // 4. Mark bookings as confirmed
+        if (!empty($hiddenBookingIds)) {
+            $placeholders = implode(',', array_fill(0, count($hiddenBookingIds), '?'));
+            $types = str_repeat('i', count($hiddenBookingIds));
+            $stmt  = $conn->prepare(
+                "UPDATE bookings SET status = 'confirmed'
+                 WHERE booking_id IN ($placeholders) AND user_id = ?"
+            );
+            $stmt->bind_param($types . 'i', ...[...$hiddenBookingIds, $uid]);
+            $stmt->execute();
+            $stmt->close();
+        }
+
+        // 5. Mark cart as checked_out
+        $stmt = $conn->prepare(
+            "UPDATE carts SET status = 'checked_out' WHERE cart_id = ?"
+        );
+        $stmt->bind_param('i', $dbCartId);
+        $stmt->execute();
+        $stmt->close();
+
+        $conn->commit();
+
+    } catch (Exception $e) {
+        $conn->rollback();
+        error_log('Payment failed: ' . $e->getMessage());
+        die('Payment processing failed. Please try again.');
+    }
+
+    // 6. Store receipt data in session
+    $_SESSION['receipt_data'] = [
+        'invoice_number' => $transactionId,
+        'customer_name'  => trim($firstName . ' ' . $lastName),
+        'first_name'     => $firstName,
+        'last_name'      => $lastName,
+        'email'          => $email,
+        'phone'          => '+63' . $phone,
+        'venue_name'     => $venueName ?: $_POST['form_venue_name'] ?? '',
+        'venue_price'    => $venuePrice,
+        'event_type'     => $eventType  ?: $_POST['form_event_type'] ?? '',
+        'event_date'     => $eventDate  ?: $_POST['form_event_date'] ?? '',
+        'event_time'     => $eventTime  ?: $_POST['form_event_time'] ?? '',
+        'duration'       => $duration   ?: $_POST['form_duration']   ?? '',
+        'guest_count'    => $guestCount ?: (int)($_POST['form_guests'] ?? 0),
+        'addons'         => $addons,
+        'fee_labels'     => $feeLabels,
+        'fees'           => $fees,
+        'total'          => $formTotal,
+        'payment_method' => $methodMsg,
+        'card_last4'     => $cardLastFour ?: null,
+        'timestamp'      => time(),
+    ];
+
+    // 7. Clear paid items from session cart
+    if (!empty($_POST['selected_indices'])) {
+        foreach ((array) $_POST['selected_indices'] as $idx) {
+            unset($_SESSION['cart'][(int) $idx]);
+        }
+        $_SESSION['cart'] = array_values($_SESSION['cart']);
+    } else {
+        $_SESSION['cart'] = [];
     }
 
     header('Location: receipt.php');
     exit();
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Payment | TAGPO</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link rel="stylesheet" href="assets/css/styles.css"/>
-  <style>
-    .payment-section {
-      transition: all 0.2s ease-in-out;
-    }
-  </style>
+  <style>.payment-section{transition:all .2s ease-in-out;}</style>
 </head>
 <body>
 
 <?php include 'includes/header.php'; ?>
 
-<section class="hero-bg text-white py-5" style="background: #2c3e50;">
+<section class="hero-bg text-white py-5" style="background:#2c3e50;">
   <div class="container text-center">
     <p class="section-eyebrow text-uppercase">Secure payment</p>
     <h1 class="display-5 fw-bold">Complete your booking</h1>
-    <p class="lead opacity-75">Finish your reservation for <?= htmlspecialchars($venueName) ?> - ₱<?= number_format($total) ?> (<?= htmlspecialchars($customerName) ?>)</p>
+    <p class="lead opacity-75">
+      <?= htmlspecialchars($venueName ?: 'Selected Venue') ?> — ₱<?= number_format($total) ?>
+      (<?= htmlspecialchars($customerName) ?>)
+    </p>
   </div>
 </section>
 
 <main class="container my-5">
   <div class="row g-5">
 
+    <!-- LEFT: Booking Summary -->
     <div class="col-lg-6">
       <div class="card p-4 shadow-sm border-0">
-        <h4 class="fw-bold mb-4">Booking Details</h4>
-        
-        <div class="p-3 mb-4" style="background: #f8f9fa; border-left: 5px solid #0d6efd; border-radius: 5px;">
-            <h5 class="fw-bold"><?= htmlspecialchars($venueName) ?> - ₱<?= number_format($venuePrice) ?></h5>
-            <p class="mb-1 text-muted small">Customer: <?= htmlspecialchars($customerName) ?></p>
-            <p class="mb-1 text-muted small">Event: <?= htmlspecialchars($eventType) ?></p>
-            <p class="mb-1 text-muted small">Schedule: <?= htmlspecialchars($eventDate) ?> at <?= htmlspecialchars($eventTime) ?> (<?= htmlspecialchars($duration) ?>)</p>
-            <p class="mb-0 text-muted small">Capacity: <?= $guestCount ?> Guests</p>
+        <h4 class="fw-bold mb-4">Booking Summary</h4>
+
+        <div class="p-3 mb-4" style="background:#f8f9fa;border-left:5px solid #0d6efd;border-radius:5px;">
+          <h5 class="fw-bold"><?= htmlspecialchars($venueName) ?></h5>
+          <p class="mb-1 text-muted small">Customer: <?= htmlspecialchars($customerName) ?></p>
+          <p class="mb-1 text-muted small">Event: <?= htmlspecialchars($eventType) ?></p>
+          <p class="mb-1 text-muted small">Date: <?= htmlspecialchars($eventDate) ?> at <?= htmlspecialchars($eventTime) ?> (<?= htmlspecialchars($duration) ?>)</p>
+          <p class="mb-0 text-muted small">Guests: <?= (int)$guestCount ?> pax</p>
         </div>
 
         <h5 class="fw-bold">Payment Breakdown</h5>
         <ul class="list-unstyled">
-          <?php foreach ($breakdownItems as $label => $value): ?>
+          <?php foreach ($feeLabels as $i => $label): ?>
             <li class="py-1 border-bottom d-flex justify-content-between">
-                <span><?= htmlspecialchars($label) ?></span>
-                <span class="fw-bold"><?= htmlspecialchars($value) ?></span>
+              <span><?= htmlspecialchars($label) ?></span>
+              <span class="fw-bold">₱<?= number_format($fees[$i]) ?></span>
             </li>
           <?php endforeach; ?>
         </ul>
-
         <div class="d-flex justify-content-between align-items-center mt-3">
-            <span class="h5">Total to Pay</span>
-            <span class="h4 fw-bold text-primary">₱<?= number_format($total); ?></span>
+          <span class="h5">Total to Pay</span>
+          <span class="h4 fw-bold text-primary">₱<?= number_format($total) ?></span>
         </div>
       </div>
     </div>
 
+    <!-- RIGHT: Checkout Form -->
     <div class="col-lg-6">
       <div class="card p-4 shadow-sm">
         <h3 class="mb-4">Checkout</h3>
 
         <form method="POST" id="payment-checkout-form">
-          
-          <?php if (isset($_POST['selected_items']) && is_array($_POST['selected_items'])): ?>
-            <?php foreach ($_POST['selected_items'] as $index): ?>
-              <input type="hidden" name="selected_items[]" value="<?= $index ?>">
+
+          <!-- Pass cart state back through the form -->
+          <?php if (!empty($_POST['selected_items'])): ?>
+            <?php foreach ((array)$_POST['selected_items'] as $idx): ?>
+              <input type="hidden" name="selected_indices[]" value="<?= (int)$idx ?>">
             <?php endforeach; ?>
           <?php endif; ?>
+
+          <?php foreach ($selectedBookingIds as $bid): ?>
+            <input type="hidden" name="booking_ids[]" value="<?= (int)$bid ?>">
+          <?php endforeach; ?>
+
+          <!-- Carry booking details for receipt -->
+          <input type="hidden" name="form_venue_name"  value="<?= htmlspecialchars($venueName) ?>">
+          <input type="hidden" name="form_event_type"  value="<?= htmlspecialchars($eventType) ?>">
+          <input type="hidden" name="form_event_date"  value="<?= htmlspecialchars($eventDate) ?>">
+          <input type="hidden" name="form_event_time"  value="<?= htmlspecialchars($eventTime) ?>">
+          <input type="hidden" name="form_duration"    value="<?= htmlspecialchars($duration) ?>">
+          <input type="hidden" name="form_guests"      value="<?= (int)$guestCount ?>">
+          <input type="hidden" name="venue_price"      value="<?= (float)$venuePrice ?>">
+          <input type="hidden" name="form_total"       value="<?= (float)$total ?>">
+          <?php foreach ($addons as $a): ?>
+            <input type="hidden" name="form_addons[]"  value="<?= htmlspecialchars($a) ?>">
+          <?php endforeach; ?>
 
           <div class="row">
             <div class="col-md-6 mb-3">
               <label class="form-label">First Name</label>
-              <input type="text" name="first_name" class="form-control" required>
+              <input type="text" name="first_name" class="form-control"
+                     value="<?= htmlspecialchars($user['first_name'] ?? '') ?>" required>
             </div>
             <div class="col-md-6 mb-3">
               <label class="form-label">Last Name</label>
-              <input type="text" name="last_name" class="form-control" required>
+              <input type="text" name="last_name" class="form-control"
+                     value="<?= htmlspecialchars($user['last_name'] ?? '') ?>" required>
             </div>
           </div>
 
           <div class="mb-3">
             <label class="form-label">Email Address</label>
-            <input type="email" name="email" class="form-control" required>
+            <input type="email" name="email" class="form-control"
+                   value="<?= htmlspecialchars($user['email'] ?? '') ?>" required>
           </div>
 
           <div class="mb-3">
             <label class="form-label">Phone Number</label>
             <div class="input-group">
-                <span class="input-group-text">+63</span>
-                <input type="text" name="phone" id="phone_input" class="form-control" placeholder="9XX XXX XXXX" required>
+              <span class="input-group-text">+63</span>
+              <input type="text" name="phone" id="phone_input" class="form-control"
+                     placeholder="9XX XXX XXXX" required>
             </div>
           </div>
 
           <div class="mb-3">
             <label class="form-label">Payment Method</label>
-            <select name="method" id="method_select" class="form-select" onchange="updatePaymentFields()" required>
+            <select name="method" id="method_select" class="form-select"
+                    onchange="updatePaymentFields()" required>
               <option value="" selected disabled>-- Select Payment Method --</option>
-              <option value="card">Credit Card</option>
+              <option value="card">Credit / Debit Card</option>
               <option value="gcash">GCash</option>
-              <option value="paypal">PayPal</option>
             </select>
           </div>
 
-          <div id="card_section" class="payment-section" style="display: none;">
+          <!-- Card fields -->
+          <div id="card_section" class="payment-section" style="display:none;">
             <div class="mb-3">
               <label class="form-label">Card Number</label>
-              <input type="text" name="card_number" id="card_number" class="form-control" placeholder="0000 0000 0000 0000" maxlength="19">
+              <input type="text" name="card_number" id="card_number" class="form-control"
+                     placeholder="0000 0000 0000 0000" maxlength="19">
             </div>
             <div class="row">
               <div class="col-6 mb-3">
                 <label class="form-label">Expiry Date</label>
-                <input type="text" name="expiry" id="expiry" class="form-control" placeholder="MM/YY" maxlength="5">
+                <input type="text" name="expiry" id="expiry" class="form-control"
+                       placeholder="MM/YY" maxlength="5">
               </div>
               <div class="col-6 mb-3">
                 <label class="form-label">CVV</label>
-                <input type="text" name="cvv" id="cvv" class="form-control" placeholder="123" maxlength="3">
+                <input type="text" name="cvv" id="cvv" class="form-control"
+                       placeholder="123" maxlength="3">
               </div>
             </div>
           </div>
 
-          <div id="gcash_section" class="payment-section" style="display: none;">
+          <!-- GCash fields -->
+          <div id="gcash_section" class="payment-section" style="display:none;">
             <div class="mb-3">
               <label class="form-label">GCash Account Name</label>
-              <input type="text" name="gcash_name" id="gcash_name" class="form-control" placeholder="Full Name">
+              <input type="text" name="gcash_name" id="gcash_name" class="form-control"
+                     placeholder="Full Name">
             </div>
             <div class="mb-3">
               <label class="form-label">GCash Number</label>
-              <input type="text" name="gcash_number" id="gcash_number" class="form-control" placeholder="09XX XXX XXXX" maxlength="13">
-            </div>
-          </div>
-
-          <div id="paypal_section" class="payment-section" style="display: none;">
-            <div class="mb-3">
-              <label class="form-label">PayPal Email</label>
-              <input type="email" name="paypal_email" id="paypal_email" class="form-control" placeholder="your@email.com">
-            </div>
-            <div class="mb-3">
-              <label class="form-label">PayPal Account Number</label>
-              <input type="text" name="paypal_number" id="paypal_number" class="form-control" placeholder="Account number">
+              <input type="text" name="gcash_number" id="gcash_number" class="form-control"
+                     placeholder="09XX XXX XXXX" maxlength="13">
             </div>
           </div>
 
           <button type="submit" name="pay_now" class="btn btn-primary w-100 py-3 fw-bold mt-2">
-            Pay ₱<?= number_format($total); ?> Now
+            Pay ₱<?= number_format($total) ?> Now
           </button>
-
-          <p class="text-center text-muted small mt-3"><?= $processStatus; ?></p>
         </form>
       </div>
     </div>
@@ -450,118 +497,82 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['pay_now'])) {
 
 <script>
 function updatePaymentFields() {
-    const method = document.getElementById("method_select").value;
-    document.getElementById("card_section").style.display = "none";
-    document.getElementById("gcash_section").style.display = "none";
-    document.getElementById("paypal_section").style.display = "none";
-    
-    if (method === "card") {
-        document.getElementById("card_section").style.display = "block";
-    } else if (method === "gcash") {
-        document.getElementById("gcash_section").style.display = "block";
-    } else if (method === "paypal") {
-        document.getElementById("paypal_section").style.display = "block";
-    }
+  const method = document.getElementById('method_select').value;
+  document.getElementById('card_section').style.display  = method === 'card'  ? 'block' : 'none';
+  document.getElementById('gcash_section').style.display = method === 'gcash' ? 'block' : 'none';
 }
 
-document.addEventListener("DOMContentLoaded", function() {
-    const phoneInput = document.getElementById("phone_input");
-    phoneInput.addEventListener("input", function() {
-        let value = this.value.replace(/\D/g, ''); 
-        if (value.length > 10) value = value.slice(0, 10); 
-        
-        let formatted = '';
-        if (value.length > 0) formatted = value.substring(0, 3);
-        if (value.length > 3) formatted += ' ' + value.substring(3, 6);
-        if (value.length > 6) formatted += ' ' + value.substring(6, 10);
-        this.value = formatted;
+document.addEventListener('DOMContentLoaded', function () {
+  // Phone formatter
+  document.getElementById('phone_input').addEventListener('input', function () {
+    let v = this.value.replace(/\D/g,'').slice(0,10);
+    let f = '';
+    if (v.length > 0) f = v.slice(0,3);
+    if (v.length > 3) f += ' ' + v.slice(3,6);
+    if (v.length > 6) f += ' ' + v.slice(6,10);
+    this.value = f;
+  });
+
+  // Card number formatter
+  const cardInput = document.getElementById('card_number');
+  if (cardInput) {
+    cardInput.addEventListener('input', function () {
+      let v = this.value.replace(/\D/g,'').slice(0,16);
+      this.value = v.match(/.{1,4}/g)?.join(' ') ?? v;
     });
+  }
 
-    const cardInput = document.getElementById("card_number");
-    if (cardInput) {
-        cardInput.addEventListener("input", function() {
-            let value = this.value.replace(/\D/g, '');
-            if (value.length > 16) value = value.slice(0, 16);
-            let matches = value.match(/\d{1,4}/g);
-            this.value = matches ? matches.join(' ') : value;
-        });
-    }
-
-    const expiryInput = document.getElementById("expiry");
-    if (expiryInput) {
-        expiryInput.addEventListener("input", function() {
-            let value = this.value.replace(/\D/g, '');
-            if (value.length >= 2) {
-                let month = parseInt(value.substring(0, 2), 10);
-                if (month > 12) month = 12;
-                if (month === 0) month = 1;
-                let monthStr = month.toString().padStart(2, '0');
-                let yearStr = value.substring(2, 4);
-                if (yearStr.length === 2) {
-                    let year = parseInt(yearStr, 10);
-                    if (year < 26) yearStr = '26';
-                }
-                this.value = monthStr + (value.length > 2 ? '/' + yearStr : '');
-            } else {
-                this.value = value;
-            }
-        });
-    }
-
-    const cvvInput = document.getElementById("cvv");
-    if (cvvInput) {
-        cvvInput.addEventListener("input", function() {
-            let value = this.value.replace(/\D/g, '');
-            if (value.length > 3) value = value.slice(0, 3);
-            this.value = value;
-        });
-    }
-
-    const gcashInput = document.getElementById("gcash_number");
-    if (gcashInput) {
-        gcashInput.addEventListener("input", function() {
-            let value = this.value.replace(/\D/g, '');
-            if (value.length > 11) value = value.slice(0, 11);
-            let formatted = '';
-            if (value.length > 0) formatted = value.substring(0, 4);
-            if (value.length > 4) formatted += ' ' + value.substring(4, 7);
-            if (value.length > 7) formatted += ' ' + value.substring(7, 11);
-            this.value = formatted;
-        });
-    }
-
-    const form = document.getElementById("payment-checkout-form");
-    form.addEventListener("submit", function(e) {
-        const cleanPhone = phoneInput.value.replace(/\D/g, '');
-        if (cleanPhone.length !== 10) {
-            e.preventDefault();
-            alert("Error: Ang phone number ay kailangang maging 10 digits.");
-            return;
-        }
-
-        const method = document.getElementById("method_select").value;
-        if (method === 'card') {
-            const cleanCard = cardInput.value.replace(/\D/g, '');
-            const cleanCvv = cvvInput.value.replace(/\D/g, '');
-            const cleanExpiry = expiryInput.value;
-
-            if (cleanCard.length !== 16) {
-                e.preventDefault();
-                alert("Error: Ang Card Number ay kailangang 16 digits.");
-                return;
-            }
-            if (cleanExpiry.length !== 5) {
-                e.preventDefault();
-                alert("Error: Pakikumpleto ang Expiry Date (MM/YY).");
-                return;
-            }
-            if (cleanCvv.length !== 3) {
-                e.preventDefault();
-                alert("Error: Ang CVV code ay dapat maglaman ng 3 digits.");
-                return;
-            }
-        }
+  // Expiry formatter
+  const expiryInput = document.getElementById('expiry');
+  if (expiryInput) {
+    expiryInput.addEventListener('input', function () {
+      let v = this.value.replace(/\D/g,'');
+      if (v.length >= 2) {
+        let m = Math.min(12, Math.max(1, parseInt(v.slice(0,2))));
+        this.value = String(m).padStart(2,'0') + (v.length > 2 ? '/' + v.slice(2,4) : '');
+      } else {
+        this.value = v;
+      }
     });
+  }
+
+  // CVV formatter
+  const cvvInput = document.getElementById('cvv');
+  if (cvvInput) {
+    cvvInput.addEventListener('input', function () {
+      this.value = this.value.replace(/\D/g,'').slice(0,3);
+    });
+  }
+
+  // GCash number formatter
+  const gcashInput = document.getElementById('gcash_number');
+  if (gcashInput) {
+    gcashInput.addEventListener('input', function () {
+      let v = this.value.replace(/\D/g,'').slice(0,11);
+      let f = '';
+      if (v.length > 0) f = v.slice(0,4);
+      if (v.length > 4) f += ' ' + v.slice(4,7);
+      if (v.length > 7) f += ' ' + v.slice(7,11);
+      this.value = f;
+    });
+  }
+
+  // Form validation
+  document.getElementById('payment-checkout-form').addEventListener('submit', function (e) {
+    const phone = document.getElementById('phone_input').value.replace(/\D/g,'');
+    if (phone.length !== 10) { e.preventDefault(); alert('Phone number must be 10 digits.'); return; }
+
+    const method = document.getElementById('method_select').value;
+    if (method === 'card') {
+      if (cardInput.value.replace(/\D/g,'').length !== 16) { e.preventDefault(); alert('Card number must be 16 digits.'); return; }
+      if (!expiryInput.value.match(/^(0[1-9]|1[0-2])\/\d{2}$/)) { e.preventDefault(); alert('Invalid expiry date (MM/YY).'); return; }
+      if (cvvInput.value.length !== 3) { e.preventDefault(); alert('CVV must be 3 digits.'); return; }
+    }
+    if (method === 'gcash') {
+      const g = gcashInput.value.replace(/\D/g,'');
+      if (g.length !== 11) { e.preventDefault(); alert('GCash number must be 11 digits.'); return; }
+    }
+  });
 });
 </script>
 </body>

@@ -3,180 +3,160 @@ require_once dirname(__DIR__) . '/config/database.php';
 require_once dirname(__DIR__) . '/config/session_config.php';
 require_once dirname(__DIR__) . '/config/app.php';
 
-$baseUrl = '../';
-
-// Update activity
 $_SESSION['last_activity'] = time();
-
-// Refresh cookie if logged in
 if (isLoggedIn()) {
-    $currentUser = getCurrentUser();
-    setcookie('user_session', $currentUser['email'], time() + (60 * 60 * 24 * 7), '/');
+    setcookie('user_session', getCurrentUser()['email'], time() + 86400 * 7, '/');
 }
-
-// Security check - Admin only
 if (!isAdmin()) {
-    header("Location: ../index.php?expired=true");
+    header('Location: ../index.php');
     exit();
 }
 
-// 1. Dito mo ilagay ang Logic (Walang HTML dapat sa taas nito)
+$errors  = [];
+$success = false;
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!isset($_SESSION['venues'])) {
-        $_SESSION['venues'] = [];
+    $name        = trim($_POST['name']     ?? '');
+    $location    = trim($_POST['location'] ?? '');
+    $price       = filter_input(INPUT_POST, 'price', FILTER_VALIDATE_FLOAT);
+    $capacity    = filter_input(INPUT_POST, 'cap',   FILTER_VALIDATE_INT);
+    $description = trim($_POST['desc']     ?? '');
+
+    if (empty($name))                   $errors[] = 'Venue name is required.';
+    if (empty($location))               $errors[] = 'Location is required.';
+    if ($price === false || $price < 0) $errors[] = 'A valid price is required.';
+    if (!$capacity || $capacity < 1)    $errors[] = 'A valid capacity is required.';
+    if (empty($description))            $errors[] = 'Description is required.';
+
+    $imageUrl = 'assets/images/default-venue.jpg';
+    if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+        $finfo   = finfo_open(FILEINFO_MIME_TYPE);
+        $mime    = finfo_file($finfo, $_FILES['image']['tmp_name']);
+        finfo_close($finfo);
+        $allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+        if (!in_array($mime, $allowed)) {
+            $errors[] = 'Only JPG, PNG, WEBP, or GIF images are allowed.';
+        } elseif ($_FILES['image']['size'] > 5 * 1024 * 1024) {
+            $errors[] = 'Image must be under 5 MB.';
+        } else {
+            $ext  = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
+            $fname = time() . '_' . bin2hex(random_bytes(4)) . '.' . strtolower($ext);
+            $dir   = dirname(__DIR__) . '/assets/images/';
+            if (!is_dir($dir)) mkdir($dir, 0755, true);
+            if (move_uploaded_file($_FILES['image']['tmp_name'], $dir . $fname)) {
+                $imageUrl = 'assets/images/' . $fname;
+            } else {
+                $errors[] = 'Failed to upload image. Check folder permissions on /assets/images/.';
+            }
+        }
     }
 
-    $uploadedImage = 'images/default-venue.jpg';
+    if (empty($errors)) {
+        // Use real_escape_string for safety — no encoding artifacts in the type string
+        $eName     = $conn->real_escape_string($name);
+        $eLocation = $conn->real_escape_string($location);
+        $eDesc     = $conn->real_escape_string($description);
+        $eImage    = $conn->real_escape_string($imageUrl);
+        $iCap      = (int)   $capacity;
+        $fPrice    = (float) $price;
 
-    if(isset($_FILES['image']) && $_FILES['image']['error'] === 0){
-        $targetDir = "../assets/images/";
-        $fileName = time() . "_" . basename($_FILES["image"]["name"]);
-        $targetFile = $targetDir . $fileName;
+        $sql = "INSERT INTO venues (name, location, capacity, price, description, image_url)
+                VALUES ('$eName', '$eLocation', $iCap, $fPrice, '$eDesc', '$eImage')";
 
-        move_uploaded_file($_FILES["image"]["tmp_name"], $targetFile);
+        if ($conn->query($sql)) {
+            $newVenueId = (int) $conn->insert_id;
 
-        $uploadedImage = $targetFile;
+            // Insert default amenities
+            foreach (['Parking Available', 'Wi-Fi', 'Air Conditioning'] as $amenity) {
+                $eAmenity = $conn->real_escape_string($amenity);
+                $conn->query(
+                    "INSERT INTO amenities (venue_id, amenity_name)
+                     VALUES ($newVenueId, '$eAmenity')"
+                );
+            }
+            $success = true;
+        } else {
+            $errors[] = 'Database error: ' . htmlspecialchars($conn->error);
+        }
     }
-
-    $newVenue = [
-        'id'        => time(), 
-        'name'      => $_POST['name'] ?? 'Unnamed Venue',
-        'location'  => $_POST['location'] ?? 'Unknown Location',
-        'price'     => (int)($_POST['price'] ?? 0),
-        'cap'       => (int)($_POST['cap'] ?? 0),
-        'standing'  => (int)($_POST['cap'] ?? 0) + 50,
-        'catering'  => isset($_POST['catering']),
-        'tag'       => $_POST['tag'] ?? 'General',
-        'image' => $uploadedImage,
-        'gallery' => [
-            ['label' => 'Main View', 'src' => $uploadedImage],
-            ['label' => 'Venue Space', 'src' => $uploadedImage],
-            ['label' => 'Exterior', 'src' => $uploadedImage],
-            ['label' => 'Exterior', 'src' => $uploadedImage],
-            ['label' => 'Exterior', 'src' => $uploadedImage]
-        ],
-        'desc'      => $_POST['desc'] ?? 'No description provided.',
-        'response'  => '24 hrs',
-        'rating'    => 5.0,
-        'reviews'   => 0,
-        'why'       => [
-            'Newly listed premium property',
-            'Flexible space for various events',
-            'Verified by Tagpo Admin'
-        ],
-        'amenities' => [
-            ['icon' => '🅿️', 'label' => 'Parking Available'],
-            ['icon' => '📶', 'label' => 'Wi-Fi Ready'],
-            ['icon' => '❄️', 'label' => 'Fully Air-conditioned']
-        ],
-        'reviews_list' => []
-    ];
-
-    $_SESSION['venues'][] = $newVenue;
-
-    // Redirect agad pagkatapos i-save
-    header("Location: ../index.php");
-    exit;
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add Venue | TAGPO</title>
-    <link rel="stylesheet" href="../assets/css/styles.css">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Add Venue | TAGPO Admin</title>
+  <link rel="stylesheet" href="../assets/css/styles.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-
 <?php include '../includes/header.php'; ?>
 
-    <div class="breadcrumb-bar">
-        <div class="container">
-            <a href="../index.php">Home</a>
-            <span class="mx-2" style="color:#d1d5db;">/</span>
-            <a href="add_venue.php">Add New Venue</a>
-        </div>
+<div class="breadcrumb-bar">
+  <div class="container">
+    <a href="../index.php">Home</a> <span class="mx-2" style="color:#d1d5db;">/</span>
+    <span>Add New Venue</span>
+  </div>
+</div>
+
+<main class="container my-5" style="max-width:700px;">
+  <h1 class="venue-title mb-4">List a New Venue</h1>
+
+  <?php if ($success): ?>
+    <div class="alert alert-success">
+      Venue added successfully! <a href="../index.php">View all venues &rarr;</a>
     </div>
+  <?php endif; ?>
+  <?php if (!empty($errors)): ?>
+    <div class="alert alert-danger">
+      <ul class="mb-0">
+        <?php foreach ($errors as $e): ?><li><?= htmlspecialchars($e) ?></li><?php endforeach; ?>
+      </ul>
+    </div>
+  <?php endif; ?>
 
-    <main class="main-wrap">
-        <div class="content-side">
-            <h1 class="venue-title">List your property</h1>
-            <p class="section-sub mb-4">Fill in the details below to add a new venue to the TAGPO collection. Your venue will be visible for the current session.</p>
-            
-            <div class="why-card">
-                <h4>Why list with TAGPO?</h4>
-                <ul class="why-list">
-                    <li><span class="check-icon"></span> Premium audience of event planners</li>
-                    <li><span class="check-icon"></span> Refined, editorial-style presentation</li>
-                    <li><span class="check-icon"></span> Easy management tools</li>
-                </ul>
-            </div>
-
-            <div class="section">
-                <h3 class="section-title">Venue Details</h3>
-                <p>Provide a clear name and location to help users find your space easily. Aesthetic descriptions and tags like "Vintage" or "Minimalist" perform best.</p>
-            </div>
+  <div class="card p-4 shadow-sm border-0">
+    <form method="POST" enctype="multipart/form-data">
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Venue Name <span class="text-danger">*</span></label>
+        <input type="text" name="name" class="form-control" placeholder="e.g. The Glass Garden"
+               value="<?= htmlspecialchars($_POST['name'] ?? '') ?>" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Location <span class="text-danger">*</span></label>
+        <input type="text" name="location" class="form-control" placeholder="e.g. Makati, Metro Manila"
+               value="<?= htmlspecialchars($_POST['location'] ?? '') ?>" required>
+      </div>
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label fw-semibold">Base Price (&#8369;) <span class="text-danger">*</span></label>
+          <input type="number" name="price" class="form-control" step="0.01" min="0"
+                 placeholder="35000" value="<?= htmlspecialchars($_POST['price'] ?? '') ?>" required>
         </div>
-
-        <div class="form-side">
-            <div class="booking-card">
-                <h3>Venue Info</h3>
-                <p class="price-sub">Enter the baseline information.</p>
-                
-                <form method="POST" enctype="multipart/form-data">
-                    <div class="form-group">
-                        <label>Venue Name</label>
-                        <input type="text" name="name" class="form-control" placeholder="e.g. The Glass Garden" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Location</label>
-                        <input type="text" name="location" class="form-control" placeholder="e.g. Makati, Metro Manila" required>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Base Price</label>
-                            <input type="number" name="price" class="form-control" placeholder="0.00" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Max Capacity</label>
-                            <input type="number" name="cap" class="form-control" placeholder="Max Pax" required>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Category Tag</label>
-                        <input type="text" name="tag" class="form-control" placeholder="Wedding · Corporate · Birthday">
-                    </div>
-
-                    <div class="form-group mb-3">
-                        <label>Venue Description</label>
-                        <textarea name="desc" class="form-control" rows="4" placeholder="Tell us more about the ambiance and history..." required></textarea>
-                    </div>
-
-                    <div class="form-group mb-3">
-                        <label>Upload Venue Image</label>
-                        <input type="file" name="image" class="form-control" accept="image/*" required>
-                    </div>
-
-                    <div class="form-check mb-4">
-                        <input class="form-check-input" type="checkbox" name="catering" id="cateringCheck">
-                        <label class="form-check-label" for="cateringCheck">
-                            Allow External Catering?
-                        </label>
-                    </div>
-
-                    <button type="submit" class="btn-enquire">Save Venue</button>
-                    
-                    <p class="free-note">This will immediately update your session data.</p>
-                </form>
-            </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label fw-semibold">Max Capacity (pax) <span class="text-danger">*</span></label>
+          <input type="number" name="cap" class="form-control" min="1"
+                 placeholder="200" value="<?= htmlspecialchars($_POST['cap'] ?? '') ?>" required>
         </div>
-    </main>
-
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Description <span class="text-danger">*</span></label>
+        <textarea name="desc" class="form-control" rows="4"
+                  placeholder="Describe the venue ambiance..." required><?= htmlspecialchars($_POST['desc'] ?? '') ?></textarea>
+      </div>
+      <div class="mb-4">
+        <label class="form-label fw-semibold">Venue Image</label>
+        <input type="file" name="image" class="form-control" accept="image/*">
+        <div class="form-text">Optional. Max 5 MB. JPG, PNG, WEBP, or GIF.</div>
+      </div>
+      <div class="d-flex gap-3">
+        <button type="submit" class="btn btn-primary px-5">Save Venue</button>
+        <a href="../index.php" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</main>
+<?php include '../includes/footer.php'; ?>
 </body>
 </html>

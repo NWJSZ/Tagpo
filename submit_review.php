@@ -3,55 +3,59 @@ require_once 'config/database.php';
 require_once 'config/session_config.php';
 
 if (!isLoggedIn()) {
-    header("Location: auth/login.php");
-    exit;
+    header('Location: auth/login.php');
+    exit();
 }
 
-$users = getCurrentUser();
+$user    = getCurrentUser();
+$userId  = (int) ($user['id'] ?? 0);
 
-$id = $users['id'] ?? null;
-
-if (!$id && !empty($users['email'])) {
+// If user ID is missing from session, look it up by email
+if (!$userId && !empty($user['email'])) {
     $stmt = $conn->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
-    $stmt->bind_param("s", $users['email']);
+    $stmt->bind_param('s', $user['email']);
     $stmt->execute();
-    $result = $stmt->get_result();
-    if ($row = $result->fetch_assoc()) {
-        $id = (int) $row['id'];
-        $_SESSION['current_user']['id'] = $id;
-    }
+    $row = $stmt->get_result()->fetch_assoc();
     $stmt->close();
+    if ($row) {
+        $userId = (int) $row['id'];
+        $_SESSION['current_user']['id'] = $userId;
+    }
 }
 
-$venue_id = filter_input(INPUT_POST, 'venue_id', FILTER_VALIDATE_INT);
-$rating   = filter_input(INPUT_POST, 'rating', FILTER_VALIDATE_INT);
-$text     = trim($_POST['review_text'] ?? '');
+// FIX: column is user_id not id in reviews table
+$venueId    = filter_input(INPUT_POST, 'venue_id', FILTER_VALIDATE_INT);
+$rating     = filter_input(INPUT_POST, 'rating',   FILTER_VALIDATE_INT);
+$reviewText = trim($_POST['review_text'] ?? '');
 
-/* =========================
-   VALIDATION
-========================= */
-if (!$id) {
-    die("Session error: user not found in database");
+if (!$userId) {
+    die('Session error: could not identify user.');
+}
+if (!$venueId || !$rating || $rating < 1 || $rating > 5 || $reviewText === '') {
+    die('All review fields are required and rating must be between 1 and 5.');
 }
 
-if (!$venue_id || !$rating || $rating < 1 || $rating > 5 || $text === '') {
-    die("Missing required fields");
+// Check venue exists
+$stmt = $conn->prepare("SELECT id FROM venues WHERE id = ? LIMIT 1");
+$stmt->bind_param('i', $venueId);
+$stmt->execute();
+if (!$stmt->get_result()->fetch_assoc()) {
+    $stmt->close();
+    die('Invalid venue.');
 }
+$stmt->close();
 
-/* =========================
-   INSERT REVIEW
-========================= */
+// FIX: use correct column name user_id (not id) and correct column review_text
 $stmt = $conn->prepare(
-    "INSERT INTO reviews (id, venue_id, rating, review_text)
+    "INSERT INTO reviews (user_id, venue_id, rating, review_text)
      VALUES (?, ?, ?, ?)"
 );
-
-$stmt->bind_param("iiis", $id, $venue_id, $rating, $text);
+$stmt->bind_param('iiis', $userId, $venueId, $rating, $reviewText);
 
 if ($stmt->execute()) {
-    header("Location: venue.php?id=" . $venue_id);
-    exit;
+    header('Location: venue.php?id=' . $venueId . '&review=success');
+    exit();
 } else {
-    echo "Error submitting review: " . htmlspecialchars($stmt->error);
+    error_log('Review insert failed: ' . $stmt->error);
+    die('Failed to submit review. Please try again.');
 }
-?>
