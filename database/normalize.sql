@@ -265,3 +265,9 @@ CREATE TABLE reviews (
         ON DELETE CASCADE
         ON UPDATE CASCADE
 );
+
+
+
+-- Insert default admin user
+INSERT INTO users (first_name, last_name, email, password, role) VALUES 
+('Admin', 'User', 'admin@tagpo.com', '$2y$10$h.t7UQyQNbYcXm/nVXV0NelrTTmIn5LyWqg5MrL.hP08x6B.ZzeJG', 'admin');
