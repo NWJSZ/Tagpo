@@ -13,6 +13,7 @@ $_SESSION['last_activity'] = time();
 
 $currentUser = getCurrentUser();
 $userId = (int) $currentUser['id'];
+$userPhone = $currentUser['phone'];
 
 // ── Collect & sanitise POST inputs ──────────────────────────────────────────
 $venueId      = filter_input(INPUT_POST, 'venue_id',    FILTER_VALIDATE_INT);
@@ -124,10 +125,10 @@ $stmt->close();
 
 // ── Insert payment record ────────────────────────────────────────────
 $stmt = $conn->prepare(
-    "INSERT INTO payments (booking_id, amount, method, status)
-     VALUES (?, ?, 'gcash', 'pending')"
+    "INSERT INTO payments (booking_id, amount, payment_method, payment_status, payment_date, user_phone)
+     VALUES (?, ?, 'gcash', 'pending', NOW(), ?)"
 );
-$stmt->bind_param('id', $bookingId, $totalPrice);
+$stmt->bind_param('ids', $bookingId, $totalPrice, $userPhone);
 
 if (!$stmt->execute()) {
     error_log('Payment insert failed: ' . $stmt->error);
@@ -139,7 +140,7 @@ $stmt->close();
 // ── Insert booking_addons ─────────────────────────────────────────────────────
 if (!empty($addonPriceMap)) {
     $stmt = $conn->prepare(
-        "INSERT IGNORE INTO booking_addons (booking_id, addon_id, quantity, unit_price)
+        "INSERT IGNORE INTO booking_addons (booking_id, addon_id, quantity, unit_price_at_booking)
          VALUES (?, ?, 1, ?)"
     );
     foreach ($addons as $addonName) {

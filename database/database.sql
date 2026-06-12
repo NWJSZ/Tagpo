@@ -167,6 +167,7 @@ CREATE TABLE payments (
     gcash_phone_number VARCHAR(20),
     gcash_account_name VARCHAR(200),
     -- Shared
+    user_phone VARCHAR(20),
     payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (booking_id)
         REFERENCES bookings(booking_id)

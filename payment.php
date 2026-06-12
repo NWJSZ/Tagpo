@@ -171,6 +171,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
     };
 
     $transactionId = strtoupper(uniqid('TXN-'));
+    $formattedPhone = '+63' . $phone;
 
     // ── DB writes inside a transaction ───────────────────────────────────────
     $conn->begin_transaction();
@@ -228,13 +229,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
                     "INSERT INTO payments
                         (booking_id, amount, payment_method, payment_status, transaction_id, 
                          card_holder_name, card_last_four, card_expiry_month, card_expiry_year,
-                         gcash_phone_number, gcash_account_name, payment_date)
-                     VALUES (?, ?, ?, 'paid', ?, ?, ?, ?, ?, ?, ?, NOW())"
+                         gcash_phone_number, gcash_account_name, user_phone, payment_date)
+                     VALUES (?, ?, ?, 'paid', ?, ?, ?, ?, ?, ?, ?, ?, NOW())"
                 );
-                $stmt->bind_param('idssssiiss',
+                $stmt->bind_param('idssssiisss',
                     $bookingId, $formTotal, $dbMethod, $transactionId,
                     $cardHolderName, $cardLastFour, $cardExpiryMonth, $cardExpiryYear,
-                    $gcashPhone, $gcashAccountName
+                    $gcashPhone, $gcashAccountName, $formattedPhone
                 );
                 $stmt->execute();
                 $paymentIds[] = (int) $conn->insert_id;
