@@ -220,42 +220,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
             $stmt->close();
         }
 
-        // 2. Insert into payments
-        $stmt = $conn->prepare(
-            "INSERT INTO payments
-                (cart_id, amount, payment_method, payment_status, transaction_id, payment_date)
-             VALUES (?, ?, ?, 'paid', ?, NOW())"
-        );
-        $stmt->bind_param('idss', $dbCartId, $formTotal, $dbMethod, $transactionId);
-        $stmt->execute();
-        $paymentId = (int) $conn->insert_id;
-        $stmt->close();
-
-        // 3. Insert into card_payments or gcash_payments
-        if ($method === 'card') {
-            $stmt = $conn->prepare(
-                "INSERT INTO card_payments
-                    (payment_id, card_holder_name, card_last_four, card_expiry_month, card_expiry_year)
-                 VALUES (?, ?, ?, ?, ?)"
-            );
-            $stmt->bind_param('issii',
-                $paymentId, $cardHolderName, $cardLastFour,
-                $cardExpiryMonth, $cardExpiryYear
-            );
-            $stmt->execute();
-            $stmt->close();
-
-        } elseif ($method === 'gcash') {
-            $stmt = $conn->prepare(
-                "INSERT INTO gcash_payments (payment_id, gcash_phone_number, gcash_account_name)
-                 VALUES (?, ?, ?)"
-            );
-            $stmt->bind_param('iss', $paymentId, $gcashPhone, $gcashAccountName);
-            $stmt->execute();
-            $stmt->close();
+        // 2. Insert payment for each booking
+        $paymentIds = [];
+        if (!empty($hiddenBookingIds)) {
+            foreach ($hiddenBookingIds as $bookingId) {
+                $stmt = $conn->prepare(
+                    "INSERT INTO payments
+                        (booking_id, amount, payment_method, payment_status, transaction_id, 
+                         card_holder_name, card_last_four, card_expiry_month, card_expiry_year,
+                         gcash_phone_number, gcash_account_name, payment_date)
+                     VALUES (?, ?, ?, 'paid', ?, ?, ?, ?, ?, ?, ?, NOW())"
+                );
+                $stmt->bind_param('idssssiiss',
+                    $bookingId, $formTotal, $dbMethod, $transactionId,
+                    $cardHolderName, $cardLastFour, $cardExpiryMonth, $cardExpiryYear,
+                    $gcashPhone, $gcashAccountName
+                );
+                $stmt->execute();
+                $paymentIds[] = (int) $conn->insert_id;
+                $stmt->close();
+            }
         }
 
-        // 4. Mark bookings as confirmed
+        // 3. Mark bookings as confirmed (updated)
         if (!empty($hiddenBookingIds)) {
             $placeholders = implode(',', array_fill(0, count($hiddenBookingIds), '?'));
             $types = str_repeat('i', count($hiddenBookingIds));
@@ -268,7 +255,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
             $stmt->close();
         }
 
-        // 5. Mark cart as checked_out
+        // 4. Mark cart as checked_out
         $stmt = $conn->prepare(
             "UPDATE carts SET status = 'checked_out' WHERE cart_id = ?"
         );
@@ -284,7 +271,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
         die('Payment processing failed. Please try again.');
     }
 
-    // 6. Store receipt data in session
+    // 5. Store receipt data in session
     $_SESSION['receipt_data'] = [
         'invoice_number' => $transactionId,
         'customer_name'  => trim($firstName . ' ' . $lastName),
@@ -308,7 +295,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
         'timestamp'      => time(),
     ];
 
-    // 7. Clear paid items from session cart
+    // 6. Clear paid items from session cart
     if (!empty($_POST['selected_indices'])) {
         foreach ((array) $_POST['selected_indices'] as $idx) {
             unset($_SESSION['cart'][(int) $idx]);

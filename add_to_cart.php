@@ -122,6 +122,20 @@ if (!$stmt->execute()) {
 $bookingId = (int) $conn->insert_id;
 $stmt->close();
 
+// ── Insert payment record ────────────────────────────────────────────
+$stmt = $conn->prepare(
+    "INSERT INTO payments (booking_id, amount, method, status)
+     VALUES (?, ?, 'gcash', 'pending')"
+);
+$stmt->bind_param('id', $bookingId, $totalPrice);
+
+if (!$stmt->execute()) {
+    error_log('Payment insert failed: ' . $stmt->error);
+    die('Payment processing failed. Please try again.');
+}
+$stmt->close();
+
+
 // ── Insert booking_addons ─────────────────────────────────────────────────────
 if (!empty($addonPriceMap)) {
     $stmt = $conn->prepare(
