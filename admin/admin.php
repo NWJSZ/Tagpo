@@ -18,58 +18,147 @@ if (isLoggedIn()) {
    SECURITY CHECK (ADMIN ONLY)
 ========================= */
 if (!isAdmin()) {
-    die("Access denied. Admin only.");
+    header('Location: ../index.php');
+    exit();
+}
+
+$errors = [];
+$successMessage = '';
+$success = false;
+$formValues = [
+    'name' => $_POST['name'] ?? '',
+    'location' => $_POST['location'] ?? '',
+    'price' => $_POST['price'] ?? '',
+    'capacity' => $_POST['capacity'] ?? '',
+    'description' => $_POST['description'] ?? '',
+];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['action']) && $_POST['action'] === 'add_venue') {
+        $name = trim($_POST['name'] ?? '');
+        $location = trim($_POST['location'] ?? '');
+        $price = filter_input(INPUT_POST, 'price', FILTER_VALIDATE_FLOAT);
+        $capacity = filter_input(INPUT_POST, 'capacity', FILTER_VALIDATE_INT);
+        $description = trim($_POST['description'] ?? '');
+
+        if (empty($name)) {
+            $errors[] = 'Venue name is required.';
+        }
+        if (empty($location)) {
+            $errors[] = 'Location is required.';
+        }
+        if ($price === false || $price < 0) {
+            $errors[] = 'A valid price is required.';
+        }
+        if ($capacity === false || $capacity < 1) {
+            $errors[] = 'A valid capacity is required.';
+        }
+        if (empty($description)) {
+            $errors[] = 'Description is required.';
+        }
+
+        $imageUrl = 'assets/images/default-venue.jpg';
+        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mime = finfo_file($finfo, $_FILES['image']['tmp_name']);
+            finfo_close($finfo);
+
+            $allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+            if (!in_array($mime, $allowed, true)) {
+                $errors[] = 'Only JPG, PNG, WEBP, or GIF images are allowed.';
+            } elseif ($_FILES['image']['size'] > 5 * 1024 * 1024) {
+                $errors[] = 'Image must be under 5 MB.';
+            } else {
+                $ext = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
+                $fname = time() . '_' . bin2hex(random_bytes(4)) . '.' . strtolower($ext);
+                $dir = dirname(__DIR__) . '/assets/images/';
+                if (!is_dir($dir)) {
+                    mkdir($dir, 0755, true);
+                }
+                if (move_uploaded_file($_FILES['image']['tmp_name'], $dir . $fname)) {
+                    $imageUrl = 'assets/images/' . $fname;
+                } else {
+                    $errors[] = 'Failed to upload image. Check folder permissions on /assets/images/.';
+                }
+            }
+        }
+
+        if (empty($errors)) {
+            $currentUser = getCurrentUser();
+            $createdBy = $currentUser['id'] ?? null;
+            $stmt = $conn->prepare(
+                "INSERT INTO venues (name, location, capacity, price, description, image_url, created_by, is_active)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, 1)"
+            );
+
+            if ($stmt) {
+                $stmt->bind_param('ssidssi', $name, $location, $capacity, $price, $description, $imageUrl, $createdBy);
+                if ($stmt->execute()) {
+                    $success = true;
+                    $successMessage = 'New venue saved successfully.';
+                    $formValues = ['name' => '', 'location' => '', 'price' => '', 'capacity' => '', 'description' => ''];
+                } else {
+                    $errors[] = 'Database error while saving venue.';
+                }
+                $stmt->close();
+            } else {
+                $errors[] = 'Could not prepare the venue save statement.';
+            }
+        }
+    }
+
+    if (isset($_POST['delete_venue_id'])) {
+        $deleteId = (int) $_POST['delete_venue_id'];
+        if ($deleteId > 0) {
+            $stmt = $conn->prepare('UPDATE venues SET is_active = 0 WHERE id = ?');
+            if ($stmt) {
+                $stmt->bind_param('i', $deleteId);
+                if ($stmt->execute()) {
+                    $success = true;
+                    $successMessage = 'Venue has been removed from the active list.';
+                } else {
+                    $errors[] = 'Database error while deleting venue.';
+                }
+                $stmt->close();
+            } else {
+                $errors[] = 'Could not prepare the delete statement.';
+            }
+        }
+    }
 }
 
 /* =========================
-   SAMPLE DATA (BOOKINGS)
-   Kung walang laman ang session, mag-inject tayo ng kunwaring bookings para may makita sa calendar
+   DATA FETCH (DB-backed)
 ========================= */
-if (empty($_SESSION['bookings'])) {
-    $_SESSION['bookings'] = [
-        [
-            'venue_id' => '1',
-            'venue_name' => 'Glass House Pavilion',
-            'event_type' => 'Wedding Reception',
-            'date' => date('Y-m-d'), // Ngayong araw
-            'guests' => 150
-        ],
-        [
-            'venue_id' => '2',
-            'venue_name' => 'Cozy Garden Studio',
-            'event_type' => 'Birthday Party',
-            'date' => date('Y-m-d', strtotime('+2 days')), // Sa makalawa
-            'guests' => 50
-        ],
-        [
-            'venue_id' => '1',
-            'venue_name' => 'Glass House Pavilion',
-            'event_type' => 'Corporate Seminar',
-            'date' => date('Y-m-d', strtotime('+5 days')),
-            'guests' => 80
-        ]
-    ];
-}
+$countRow = getRow($conn, 'SELECT COUNT(*) AS cnt FROM bookings');
+$totalBookings = (int) ($countRow['cnt'] ?? 0);
+$countRow = getRow($conn, 'SELECT COUNT(*) AS cnt FROM venues WHERE is_active = 1');
+$totalVenues = (int) ($countRow['cnt'] ?? 0);
+$countRow = getRow($conn, 'SELECT COUNT(*) AS cnt FROM users');
+$totalUsers = (int) ($countRow['cnt'] ?? 0);
 
-$bookings = $_SESSION['bookings'] ?? [];
+$bookings = getRows($conn,
+    'SELECT b.id, b.event_type, b.event_date AS date, b.guest_count, IFNULL(v.name, "Unknown Venue") AS venue_name, IFNULL(v.id, 0) AS venue_id
+     FROM bookings b
+     LEFT JOIN venues v ON b.venue_id = v.id
+     ORDER BY b.event_date ASC'
+);
 
-// I-format ang bookings para sa FullCalendar JSON format
 $calendarEvents = [];
 foreach ($bookings as $b) {
     $calendarEvents[] = [
-        'title' => ($b['venue_name'] ?? 'Venue ' . $b['venue_id']) . " - " . $b['event_type'],
+        'title' => ($b['venue_name'] ?? 'Venue ' . $b['venue_id']) . ' - ' . $b['event_type'],
         'start' => $b['date'],
-        'description' => "Guests: " . $b['guests'],
-        'backgroundColor' => '#0d6efd', // Bootstrap Primary Blue
+        'description' => 'Guests: ' . $b['guest_count'],
+        'backgroundColor' => '#0d6efd',
         'borderColor' => '#0d6efd'
     ];
 }
 
-/* =========================
-   DATA TYPE TEST (basic validation)
-========================= */
+$venues = getRows($conn, 'SELECT id, name, location, price, capacity, is_active, created_at FROM venues ORDER BY id DESC');
+
 function isValidBooking($b) {
-    return is_array($b) && isset($b['venue_id'], $b['event_type'], $b['date']);
+    return is_array($b) && isset($b['venue_id'], $b['event_type'], $b['date'], $b['guest_count']);
 }
 ?>
 
@@ -180,7 +269,7 @@ function isValidBooking($b) {
             <div class="text-muted"><?= date('F j, Y') ?></div>
         </div>
 
-        <?php $stats = [count($bookings), 3, 12]; ?>
+        <?php $stats = [$totalBookings, $totalVenues, $totalUsers]; ?>
         <div class="row mb-4">
             <div class="col-md-4">
                 <div class="card p-3 shadow-sm border-0">
@@ -249,7 +338,7 @@ function isValidBooking($b) {
                                 <td><strong><?= htmlspecialchars($b['venue_name'] ?? 'Venue '.$b['venue_id']) ?></strong></td>
                                 <td><?= htmlspecialchars($b['event_type']) ?></td>
                                 <td><span class="badge bg-secondary"><?= htmlspecialchars($b['date']) ?></span></td>
-                                <td><?= htmlspecialchars($b['guests']) ?> guests</td>
+                                <td><?= htmlspecialchars($b['guest_count']) ?> guests</td>
                             </tr>
                             <?php
                                 endif;
@@ -264,49 +353,125 @@ function isValidBooking($b) {
 
         case 'add_venue': ?>
             <h2 class="mb-4">Add New Venue</h2>
-            <div class="card p-4 shadow-sm border-0" style="max-width: 600px;">
-                <p class="text-muted small">Mock Form: Papaganahin natin ito kapag may database setup na.</p>
-                <form action="#" method="POST">
+            <div class="card p-4 shadow-sm border-0" style="max-width: 700px;">
+                <?php if ($success && isset($_POST['action']) && $_POST['action'] === 'add_venue'): ?>
+                    <div class="alert alert-success"><?= htmlspecialchars($successMessage) ?></div>
+                <?php endif; ?>
+                <?php if (!empty($errors) && isset($_POST['action']) && $_POST['action'] === 'add_venue'): ?>
+                    <div class="alert alert-danger">
+                        <ul class="mb-0">
+                            <?php foreach ($errors as $error): ?>
+                                <li><?= htmlspecialchars($error) ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+                <?php endif; ?>
+
+                <form method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="action" value="add_venue">
                     <div class="mb-3">
                         <label class="form-label">Venue Name</label>
-                        <input type="text" class="form-control" placeholder="e.g., Tagpo Secret Garden" disabled>
+                        <input type="text" name="name" class="form-control" placeholder="e.g., Tagpo Secret Garden"
+                               value="<?= htmlspecialchars($formValues['name']) ?>" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Location / Address</label>
-                        <input type="text" class="form-control" placeholder="e.g., Lipa, Batangas" disabled>
+                        <input type="text" name="location" class="form-control" placeholder="e.g., Lipa, Batangas"
+                               value="<?= htmlspecialchars($formValues['location']) ?>" required>
                     </div>
-                    <button type="button" class="btn btn-primary" disabled>Save Venue (Soon)</button>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Base Price (₱)</label>
+                            <input type="number" name="price" step="0.01" min="0" class="form-control"
+                                   placeholder="35000" value="<?= htmlspecialchars($formValues['price']) ?>" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Max Capacity (pax)</label>
+                            <input type="number" name="capacity" min="1" class="form-control"
+                                   placeholder="200" value="<?= htmlspecialchars($formValues['capacity']) ?>" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" class="form-control" rows="4" placeholder="Describe the venue ambiance..." required><?= htmlspecialchars($formValues['description']) ?></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Venue Image</label>
+                        <input type="file" name="image" class="form-control" accept="image/*">
+                        <div class="form-text">Optional. JPG, PNG, WEBP, GIF. Max 5 MB.</div>
+                    </div>
+                    <div class="d-flex gap-3">
+                        <button type="submit" class="btn btn-primary px-5">Save Venue</button>
+                        <a href="?view=dashboard" class="btn btn-secondary">Cancel</a>
+                    </div>
                 </form>
             </div>
         <?php break;
 
         case 'manage_venues': ?>
             <h2 class="mb-4">Manage & Delete Venues</h2>
+            <?php if ($success && isset($_POST['delete_venue_id'])): ?>
+                <div class="alert alert-success"><?= htmlspecialchars($successMessage) ?></div>
+            <?php endif; ?>
+            <?php if (!empty($errors) && isset($_POST['delete_venue_id'])): ?>
+                <div class="alert alert-danger">
+                    <ul class="mb-0">
+                        <?php foreach ($errors as $error): ?>
+                            <li><?= htmlspecialchars($error) ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+            <?php endif; ?>
             <div class="card p-4 shadow-sm border-0">
-                <table class="table align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>ID</th>
-                            <th>Venue Name</th>
-                            <th>Status</th>
-                            <th class="text-end">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>1</td>
-                            <td>Glass House Pavilion</td>
-                            <td><span class="badge bg-success">Active</span></td>
-                            <td class="text-end"><button class="btn btn-danger btn-sm" disabled><i class="bi bi-trash"></i> Delete</button></td>
-                        </tr>
-                        <tr>
-                            <td>2</td>
-                            <td>Cozy Garden Studio</td>
-                            <td><span class="badge bg-success">Active</span></td>
-                            <td class="text-end"><button class="btn btn-danger btn-sm" disabled><i class="bi bi-trash"></i> Delete</button></td>
-                        </tr>
-                    </tbody>
-                </table>
+                <?php if (empty($venues)): ?>
+                    <div class="text-muted">No venues have been added yet.</div>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Venue Name</th>
+                                    <th>Location</th>
+                                    <th>Price</th>
+                                    <th>Capacity</th>
+                                    <th>Status</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($venues as $venue): ?>
+                                    <tr>
+                                        <td><?= htmlspecialchars($venue['id']) ?></td>
+                                        <td><?= htmlspecialchars($venue['name']) ?></td>
+                                        <td><?= htmlspecialchars($venue['location']) ?></td>
+                                        <td>₱<?= number_format((float) $venue['price'], 2) ?></td>
+                                        <td><?= htmlspecialchars($venue['capacity']) ?></td>
+                                        <td>
+                                            <?php if ($venue['is_active']): ?>
+                                                <span class="badge bg-success">Active</span>
+                                            <?php else: ?>
+                                                <span class="badge bg-secondary">Inactive</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="text-end">
+                                            <?php if ($venue['is_active']): ?>
+                                                <form method="POST" class="d-inline">
+                                                    <input type="hidden" name="delete_venue_id" value="<?= htmlspecialchars($venue['id']) ?>">
+                                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Remove this venue?');">
+                                                        <i class="bi bi-trash"></i> Delete
+                                                    </button>
+                                                </form>
+                                            <?php else: ?>
+                                                <span class="text-muted">No action</span>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
             </div>
         <?php break;
     endswitch; ?>
