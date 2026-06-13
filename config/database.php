@@ -46,3 +46,26 @@ function preparedQuery($conn, $sql, $types, $params) {
 
     return $stmt->get_result();
 }
+
+/**
+ * Detect which foreign key column exists on the payments table.
+ * Returns 'cart_id' or 'booking_id' (prefers cart_id if present), or null if none found.
+ *
+ * @param mysqli $conn
+ * @return string|null
+ */
+function getPaymentsForeignKeyColumn(mysqli $conn): ?string
+{
+    $res = $conn->query("SHOW COLUMNS FROM `payments`");
+    if (!$res) return null;
+
+    $fields = [];
+    while ($row = $res->fetch_assoc()) {
+        $fields[] = $row['Field'];
+    }
+
+    // Prefer cart_id if both exist to match newer schema expectations
+    if (in_array('cart_id', $fields, true)) return 'cart_id';
+    if (in_array('booking_id', $fields, true)) return 'booking_id';
+    return null;
+}
