@@ -138,7 +138,7 @@ $countRow = getRow($conn, 'SELECT COUNT(*) AS cnt FROM users');
 $totalUsers = (int) ($countRow['cnt'] ?? 0);
 
 $bookings = getRows($conn,
-    'SELECT b.id, b.event_type, b.event_date AS date, b.guest_count, IFNULL(v.name, "Unknown Venue") AS venue_name, IFNULL(v.id, 0) AS venue_id
+    'SELECT b.booking_id, b.event_type, b.event_date AS date, b.guest_count, IFNULL(v.name, "Unknown Venue") AS venue_name, IFNULL(v.id, 0) AS venue_id
      FROM bookings b
      LEFT JOIN venues v ON b.venue_id = v.id
      ORDER BY b.event_date ASC'
