@@ -13,7 +13,6 @@ $_SESSION['last_activity'] = time();
 
 $currentUser = getCurrentUser();
 $userId = (int) $currentUser['id'];
-$userPhone = $currentUser['phone'];
 
 // ── Collect & sanitise POST inputs ──────────────────────────────────────────
 $venueId      = filter_input(INPUT_POST, 'venue_id',    FILTER_VALIDATE_INT);
@@ -125,10 +124,10 @@ $stmt->close();
 
 // ── Insert payment record ────────────────────────────────────────────
 $stmt = $conn->prepare(
-    "INSERT INTO payments (booking_id, amount, payment_method, payment_status, payment_date, user_phone)
-     VALUES (?, ?, 'gcash', 'pending', NOW(), ?)"
+    "INSERT INTO payments (booking_id, amount, payment_method, payment_status, payment_date)
+     VALUES (?, ?, 'gcash', 'pending', NOW())"
 );
-$stmt->bind_param('ids', $bookingId, $totalPrice, $userPhone);
+$stmt->bind_param('id', $bookingId, $totalPrice);
 
 if (!$stmt->execute()) {
     error_log('Payment insert failed: ' . $stmt->error);

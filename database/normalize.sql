@@ -195,7 +195,6 @@ CREATE TABLE payments (
     transaction_id VARCHAR(100) UNIQUE,
 
     payment_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-    user_phone VARCHAR(20),
 
     FOREIGN KEY (cart_id)
         REFERENCES carts(cart_id)

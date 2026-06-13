@@ -20,16 +20,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $firstName = trim($_POST['first_name'] ?? '');
     $lastName = trim($_POST['last_name'] ?? '');
     $email = trim($_POST['email'] ?? '');
+    $phone = preg_replace('/\D/', '', $_POST['phone'] ?? '');
     $password = $_POST['password'] ?? '';
     $confirmPassword = $_POST['confirm_password'] ?? '';
 
     // Binago ang check kung empty ang mga required fields
-    if ($firstName === '' || $lastName === '' || $email === '' || $password === '') {
+    if ($firstName === '' || $lastName === '' || $email === '' || $password === '' || $phone === '') {
         $error = "All fields are required!";
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = "Invalid email format!";
     } elseif (strlen($password) < 6) {
         $error = "Password must be at least 6 characters!";
+    } elseif (strlen($phone) !== 10) {
+        $error = "Phone number must be exactly 10 digits.";
     } elseif ($password !== $confirmPassword) {
         $error = "Passwords do not match!";
     }
@@ -50,12 +53,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             // In-update ang query para sa dalawang bagong columns (first_name, last_name)
             $stmt = $conn->prepare("
-                INSERT INTO users (first_name, last_name, email, password, role)
-                VALUES (?, ?, ?, ?, 'user')
+                INSERT INTO users (first_name, last_name, email, password, phone, role)
+                VALUES (?, ?, ?, ?, ?, 'user')
             ");
 
-            // 'ssss' na ngayon ang types dahil apat na strings ang ipapasa natin
-            $stmt->bind_param("ssss", $firstName, $lastName, $email, $hashedPassword);
+            // 'sssss' na ngayon ang types dahil limang strings ang ipapasa natin
+            $stmt->bind_param("sssss", $firstName, $lastName, $email, $hashedPassword, $phone);
             $stmt->execute();
             $newUserId = $conn->insert_id;
 
@@ -67,6 +70,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 'first_name' => $firstName,
                 'last_name' => $lastName,
                 'email' => $email,
+                'phone' => $phone,
                 'role' => 'user'
             ];
 
@@ -154,6 +158,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         <div class="input-group">
                             <span class="input-group-text"><i class="fa-regular fa-envelope"></i></span>
                             <input type="email" name="email" class="form-control" placeholder="name@example.com" value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="auth-label">Phone Number</label>
+                        <div class="input-group">
+                            <span class="input-group-text">+63</span>
+                            <input type="text" name="phone" class="form-control" placeholder="9XX XXX XXXX" value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>" maxlength="10" required>
                         </div>
                     </div>
 

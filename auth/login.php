@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         // Look up user in DB
         $stmt = $conn->prepare(
-            "SELECT id, first_name, last_name, email, password, role
+            "SELECT id, first_name, last_name, email, password, phone, role
              FROM users WHERE email = ? LIMIT 1"
         );
         $stmt->bind_param('s', $email);
@@ -38,6 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'first_name' => $user['first_name'],
                 'last_name'  => $user['last_name'],
                 'email'      => $user['email'],
+                'phone'      => $user['phone'],
                 'role'       => $user['role'],
             ];
             $_SESSION['last_activity'] = time();

@@ -90,7 +90,6 @@ CREATE TABLE IF NOT EXISTS bookings (
     payment_status ENUM('pending', 'completed', 'failed') DEFAULT 'pending',
     payment_method VARCHAR(50),
     transaction_id VARCHAR(100),
-    user_phone VARCHAR(20),
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

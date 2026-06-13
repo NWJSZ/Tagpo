@@ -129,6 +129,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
         die('Please select a payment method.');
     }
 
+    // Update the saved user phone if it changed
+    $existingUserPhone = $user['phone'] ?? '';
+    if ($phone !== $existingUserPhone) {
+        $updatePhoneStmt = $conn->prepare("UPDATE users SET phone = ? WHERE id = ?");
+        $updatePhoneStmt->bind_param('si', $phone, $uid);
+        $updatePhoneStmt->execute();
+        $updatePhoneStmt->close();
+        $_SESSION['current_user']['phone'] = $phone;
+    }
+
     // Card-specific validation
     $cardHolderName   = '';
     $cardLastFour     = '';
@@ -229,13 +239,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
                     "INSERT INTO payments
                         (booking_id, amount, payment_method, payment_status, transaction_id, 
                          card_holder_name, card_last_four, card_expiry_month, card_expiry_year,
-                         gcash_phone_number, gcash_account_name, user_phone, payment_date)
-                     VALUES (?, ?, ?, 'paid', ?, ?, ?, ?, ?, ?, ?, ?, NOW())"
+                         gcash_phone_number, gcash_account_name, payment_date)
+                     VALUES (?, ?, ?, 'paid', ?, ?, ?, ?, ?, ?, ?, NOW())"
                 );
-                $stmt->bind_param('idssssiisss',
+                $stmt->bind_param('idssssiiss',
                     $bookingId, $formTotal, $dbMethod, $transactionId,
                     $cardHolderName, $cardLastFour, $cardExpiryMonth, $cardExpiryYear,
-                    $gcashPhone, $gcashAccountName, $formattedPhone
+                    $gcashPhone, $gcashAccountName
                 );
                 $stmt->execute();
                 $paymentIds[] = (int) $conn->insert_id;
@@ -423,7 +433,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
             <div class="input-group">
               <span class="input-group-text">+63</span>
               <input type="text" name="phone" id="phone_input" class="form-control"
-                     placeholder="9XX XXX XXXX" required>
+                     placeholder="9XX XXX XXXX" value="<?= htmlspecialchars($user['phone'] ?? '') ?>" required>
             </div>
           </div>
 
