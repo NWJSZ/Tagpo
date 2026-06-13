@@ -123,11 +123,14 @@ $bookingId = (int) $conn->insert_id;
 $stmt->close();
 
 // ── Insert payment record ────────────────────────────────────────────
+$paymentsForeignKey = getPaymentsForeignKeyColumn($conn);
+$paymentKeyColumn = $paymentsForeignKey === 'booking_id' ? 'booking_id' : 'cart_id';
+$paymentKeyValue  = $paymentsForeignKey === 'booking_id' ? $bookingId : $cartId;
 $stmt = $conn->prepare(
-    "INSERT INTO payments (cart_id, amount, payment_method, payment_status, payment_date)
+    "INSERT INTO payments ({$paymentKeyColumn}, amount, payment_method, payment_status, payment_date)
      VALUES (?, ?, 'gcash', 'pending', NOW())"
 );
-$stmt->bind_param('id', $cartId, $totalPrice);
+$stmt->bind_param('id', $paymentKeyValue, $totalPrice);
 
 if (!$stmt->execute()) {
     error_log('Payment insert failed: ' . $stmt->error);
@@ -161,6 +164,8 @@ $_SESSION['cart'][] = [
     'venue_id'    => $venueId,
     'venue_name'  => $venueName,
     'venue_price' => $venuePrice,
+    'event_type'  => $eventType,
+    'event_id'    => $eventId,
     'event_date'  => $eventDate,
     'event_time'  => $eventTime,
     'duration'    => $durationRaw,
