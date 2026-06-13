@@ -29,6 +29,73 @@ foreach ($venues as $v) {
     break;
   }
 }
+
+// STEP 6: Fetch reviews from database
+if ($selected) {
+  $venueId = (int) $selected['id'];
+  
+  // Fetch all reviews for this venue from database
+  $reviewsQuery = $conn->prepare(
+    "SELECT r.review_id, r.rating, r.review_text, r.review_date, u.first_name, u.last_name 
+     FROM reviews r 
+     JOIN users u ON r.user_id = u.id 
+     WHERE r.venue_id = ? 
+     ORDER BY r.review_date DESC"
+  );
+  $reviewsQuery->bind_param('i', $venueId);
+  $reviewsQuery->execute();
+  $reviewsResult = $reviewsQuery->get_result();
+  
+  $dbReviews = [];
+  $totalRating = 0;
+  $reviewCount = 0;
+  
+  while ($row = $reviewsResult->fetch_assoc()) {
+    $reviewCount++;
+    $totalRating += $row['rating'];
+    
+    $firstName = htmlspecialchars($row['first_name'] ?? '');
+    $lastName = htmlspecialchars($row['last_name'] ?? '');
+    $fullName = trim($firstName . ' ' . $lastName);
+    if (empty($fullName)) {
+      $fullName = 'Anonymous';
+    }
+    
+    // Extract initials
+    $initials = substr($firstName, 0, 1) . substr($lastName, 0, 1);
+    if (strlen($initials) < 2) {
+      $initials = substr($fullName, 0, 2);
+    }
+    $initials = strtoupper($initials);
+    
+    // Generate consistent color from name
+    $colors = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+    $colorIndex = (ord($firstName[0] ?? 'A') + ord($lastName[0] ?? 'A')) % count($colors);
+    $color = $colors[$colorIndex];
+    
+    // Format date
+    $reviewDate = new DateTime($row['review_date']);
+    $formattedDate = $reviewDate->format('F Y');
+    
+    $dbReviews[] = [
+      'name' => $fullName,
+      'initials' => $initials,
+      'color' => $color,
+      'date' => $formattedDate,
+      'rating' => (int) $row['rating'],
+      'text' => htmlspecialchars($row['review_text'] ?? '')
+    ];
+  }
+  $reviewsQuery->close();
+  
+  // Update selected venue with database reviews if any exist
+  if ($reviewCount > 0) {
+    $selected['reviews_list'] = $dbReviews;
+    $selected['reviews'] = $reviewCount;
+    $selected['rating'] = round($totalRating / $reviewCount, 1);
+  }
+}
+
 function stars(float $rating): string
 {
   $full  = (int) floor($rating);
@@ -211,6 +278,14 @@ function stars(float $rating): string
 
         <div class="section" id="reviews">
           <div class="section-title">Guest Reviews</div>
+          
+          <?php if (!empty($_GET['review']) && $_GET['review'] === 'success'): ?>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+              <strong>✓ Review Submitted!</strong> Your review has been posted successfully. Thank you for your feedback!
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          <?php endif; ?>
+          
           <div class="review-summary">
             <div class="rating-big"><?php echo $selected['rating']; ?></div>
             <div>
