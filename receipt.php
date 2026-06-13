@@ -159,7 +159,7 @@ $issuedAt = date('F j, Y \a\t g:i A', $receipt['timestamp']);
         </div>
 
         <div class="d-flex justify-content-between align-items-center gap-3 no-print" data-html2canvas-ignore="true">
-          <a href="payment.php" class="btn btn-secondary">Back to Payment</a>
+          <a href="index.php" class="btn btn-secondary">Back to Home</a>
           <button type="button" class="btn btn-outline-secondary" onclick="window.downloadreceipt();">Download PDF</button>
           <button type="button" class="btn btn-primary" onclick="window.print();">Print Receipt</button>
         </div>

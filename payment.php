@@ -87,7 +87,7 @@ $fees       = [(float) $venuePrice];
 $feeLabels  = ['Venue Price'];
 
 foreach ($addons as $addon) {
-    $price = $addonRows[$addon] ?? 2000.00; // sensible fallback
+    $price = $addonRows[$addon] ?? 2000.00;
     $fees[]      = $price;
     $feeLabels[] = $addon . ' Add-on';
 }
@@ -113,7 +113,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
     $phone     = preg_replace('/\D/', '', $_POST['phone'] ?? '');
     $method    = $_POST['method'] ?? '';
 
-    // Re-compute total from hidden fields passed back through the form
     $formVenuePrice = (float) ($_POST['venue_price'] ?? $venuePrice);
     $formAddons     = is_array($_POST['form_addons'] ?? null) ? $_POST['form_addons'] : $addons;
     $formTotal      = (float) ($_POST['form_total']  ?? $total);
@@ -130,6 +129,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
     }
 
     // Update the saved user phone if it changed
+    $uid = (int) $user['id'];
     $existingUserPhone = $user['phone'] ?? '';
     if ($phone !== $existingUserPhone) {
         $updatePhoneStmt = $conn->prepare("UPDATE users SET phone = ? WHERE id = ?");
@@ -181,23 +181,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
     };
 
     $transactionId = strtoupper(uniqid('TXN-'));
-    $formattedPhone = '+63' . $phone;
+
+    // Re-read selected booking IDs passed as hidden fields
+    $hiddenBookingIds = [];
+    if (!empty($_POST['cart_ids'])) {
+        foreach ((array) $_POST['cart_ids'] as $bid) {
+            $hiddenBookingIds[] = (int) $bid;
+        }
+    }
 
     // ── DB writes inside a transaction ───────────────────────────────────────
     $conn->begin_transaction();
     try {
-        // 1. Ensure there is an active cart in the DB for this user
-        $uid = (int) $user['id'];
-
-        // Re-read selected booking IDs passed as hidden fields
-        $hiddenBookingIds = [];
-        if (!empty($_POST['cart_ids'])) {
-            foreach ((array) $_POST['cart_ids'] as $bid) {
-                $hiddenBookingIds[] = (int) $bid;
-            }
-        }
-
-        // Derive cart_id from the first booking (if available)
+        // 1. Derive cart_id from the first booking (if available)
         $dbCartId = null;
         if (!empty($hiddenBookingIds)) {
             $stmt = $conn->prepare(
@@ -231,29 +227,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
             $stmt->close();
         }
 
-        // 2. Insert payment for each booking
-        $paymentIds = [];
-        if (!empty($hiddenBookingIds)) {
-            foreach ($hiddenBookingIds as $bookingId) {
-                $stmt = $conn->prepare(
-                    "INSERT INTO payments
-                        (cart_id, amount, payment_method, payment_status, transaction_id, 
-                         card_holder_name, card_last_four, card_expiry_month, card_expiry_year,
-                         gcash_phone_number, gcash_account_name, payment_date)
-                     VALUES (?, ?, ?, 'paid', ?, ?, ?, ?, ?, ?, ?, NOW())"
-                );
-                $stmt->bind_param('idssssiiss',
-                    $bookingId, $formTotal, $dbMethod, $transactionId,
-                    $cardHolderName, $cardLastFour, $cardExpiryMonth, $cardExpiryYear,
-                    $gcashPhone, $gcashAccountName
-                );
-                $stmt->execute();
-                $paymentIds[] = (int) $conn->insert_id;
-                $stmt->close();
-            }
+        // 2. Check if a payment record already exists for this cart (created by add_to_cart)
+        $stmt = $conn->prepare(
+            "SELECT payment_id FROM payments WHERE cart_id = ? LIMIT 1"
+        );
+        $stmt->bind_param('i', $dbCartId);
+        $stmt->execute();
+        $existingPayment = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+
+        if ($existingPayment) {
+            // Update the existing payment record
+            $paymentId = (int) $existingPayment['payment_id'];
+            $stmt = $conn->prepare(
+                "UPDATE payments
+                 SET amount = ?, payment_method = ?, payment_status = 'paid',
+                     transaction_id = ?, payment_date = NOW()
+                 WHERE payment_id = ?"
+            );
+            $stmt->bind_param('dssi', $formTotal, $dbMethod, $transactionId, $paymentId);
+            $stmt->execute();
+            $stmt->close();
+        } else {
+            // Insert a fresh payment record
+            $stmt = $conn->prepare(
+                "INSERT INTO payments
+                    (cart_id, amount, payment_method, payment_status, transaction_id, payment_date)
+                 VALUES (?, ?, ?, 'paid', ?, NOW())"
+            );
+            $stmt->bind_param('idss', $dbCartId, $formTotal, $dbMethod, $transactionId);
+            $stmt->execute();
+            $paymentId = (int) $conn->insert_id;
+            $stmt->close();
         }
 
-        // 3. Mark bookings as confirmed (updated)
+        // 3. Insert into card_payments or gcash_payments child table
+        if ($method === 'card') {
+            // Remove old record if updating
+            $stmt = $conn->prepare("DELETE FROM card_payments WHERE payment_id = ?");
+            $stmt->bind_param('i', $paymentId);
+            $stmt->execute();
+            $stmt->close();
+
+            $stmt = $conn->prepare(
+                "INSERT INTO card_payments
+                    (payment_id, card_holder_name, card_last_four, card_expiry_month, card_expiry_year)
+                 VALUES (?, ?, ?, ?, ?)"
+            );
+            $stmt->bind_param('issii', $paymentId, $cardHolderName, $cardLastFour, $cardExpiryMonth, $cardExpiryYear);
+            $stmt->execute();
+            $stmt->close();
+
+        } elseif ($method === 'gcash') {
+            // Remove old record if updating
+            $stmt = $conn->prepare("DELETE FROM gcash_payments WHERE payment_id = ?");
+            $stmt->bind_param('i', $paymentId);
+            $stmt->execute();
+            $stmt->close();
+
+            $stmt = $conn->prepare(
+                "INSERT INTO gcash_payments
+                    (payment_id, gcash_phone_number, gcash_account_name)
+                 VALUES (?, ?, ?)"
+            );
+            $stmt->bind_param('iss', $paymentId, $gcashPhone, $gcashAccountName);
+            $stmt->execute();
+            $stmt->close();
+        }
+
+        // 4. Mark bookings as confirmed
         if (!empty($hiddenBookingIds)) {
             $placeholders = implode(',', array_fill(0, count($hiddenBookingIds), '?'));
             $types = str_repeat('i', count($hiddenBookingIds));
@@ -266,7 +308,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
             $stmt->close();
         }
 
-        // 4. Mark cart as checked_out
+        // 5. Mark cart as checked_out
         $stmt = $conn->prepare(
             "UPDATE carts SET status = 'checked_out' WHERE cart_id = ?"
         );
@@ -279,10 +321,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
     } catch (Exception $e) {
         $conn->rollback();
         error_log('Payment failed: ' . $e->getMessage());
-        die('Payment processing failed. Please try again.');
+        die('Payment processing failed: ' . htmlspecialchars($e->getMessage()) . '. Please try again.');
     }
 
-    // 5. Store receipt data in session
+    // 6. Store receipt data in session
     $_SESSION['receipt_data'] = [
         'invoice_number' => $transactionId,
         'customer_name'  => trim($firstName . ' ' . $lastName),
@@ -292,7 +334,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
         'phone'          => '+63' . $phone,
         'venue_name'     => $venueName ?: $_POST['form_venue_name'] ?? '',
         'venue_price'    => $venuePrice,
-        'event_id'     => $eventType  ?: $_POST['form_event_id'] ?? '',
+        'event_id'       => $eventType  ?: $_POST['form_event_id'] ?? '',
         'event_date'     => $eventDate  ?: $_POST['form_event_date'] ?? '',
         'event_time'     => $eventTime  ?: $_POST['form_event_time'] ?? '',
         'duration'       => $duration   ?: $_POST['form_duration']   ?? '',
@@ -306,7 +348,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
         'timestamp'      => time(),
     ];
 
-    // 6. Clear paid items from session cart
+    // 7. Clear paid items from session cart
     if (!empty($_POST['selected_indices'])) {
         foreach ((array) $_POST['selected_indices'] as $idx) {
             unset($_SESSION['cart'][(int) $idx]);
@@ -502,7 +544,6 @@ function updatePaymentFields() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-  // Phone formatter
   document.getElementById('phone_input').addEventListener('input', function () {
     let v = this.value.replace(/\D/g,'').slice(0,10);
     let f = '';
@@ -512,7 +553,6 @@ document.addEventListener('DOMContentLoaded', function () {
     this.value = f;
   });
 
-  // Card number formatter
   const cardInput = document.getElementById('card_number');
   if (cardInput) {
     cardInput.addEventListener('input', function () {
@@ -521,7 +561,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // Expiry formatter
   const expiryInput = document.getElementById('expiry');
   if (expiryInput) {
     expiryInput.addEventListener('input', function () {
@@ -535,7 +574,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // CVV formatter
   const cvvInput = document.getElementById('cvv');
   if (cvvInput) {
     cvvInput.addEventListener('input', function () {
@@ -543,7 +581,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // GCash number formatter
   const gcashInput = document.getElementById('gcash_number');
   if (gcashInput) {
     gcashInput.addEventListener('input', function () {
@@ -556,7 +593,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // Form validation
   document.getElementById('payment-checkout-form').addEventListener('submit', function (e) {
     const phone = document.getElementById('phone_input').value.replace(/\D/g,'');
     if (phone.length !== 10) { e.preventDefault(); alert('Phone number must be 10 digits.'); return; }
