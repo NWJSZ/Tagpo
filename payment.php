@@ -40,13 +40,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['pay_now'])) {
         $item = $_SESSION['cart'][$index];
         $venueNamesArray[]    = $item['venue_name'];
         $venuePrice          += (float) ($item['venue_price'] ?? 0);
-        if (empty($eventType))  $eventType  = $item['event_type'] ?? '';
+        if (empty($eventType))  $eventType  = $item['event_id'] ?? '';
         if (empty($eventDate))  $eventDate  = $item['event_date'] ?? '';
         if (empty($eventTime))  $eventTime  = $item['event_time'] ?? '';
         if (empty($duration))   $duration   = $item['duration']   ?? '';
         $guestCount           += (int) ($item['guests'] ?? 0);
         if (!empty($item['addons'])) $addons = array_merge($addons, $item['addons']);
-        if (!empty($item['booking_id'])) $selectedBookingIds[] = (int) $item['booking_id'];
+        if (!empty($item['cart_id'])) $selectedBookingIds[] = (int) $item['cart_id'];
         if (!$cartIdForPayment && !empty($item['cart_id'])) $cartIdForPayment = (int) $item['cart_id'];
     }
 
@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['pay_now'])) {
     // Fallback: GET params (from checkout.php redirect) or re-POST
     $venueName  = $_GET['venue_name'] ?? $_POST['venue_name'] ?? '';
     $venuePrice = (float) ($_GET['venue_price'] ?? $_POST['venue_price'] ?? 0);
-    $eventType  = $_GET['event_type']  ?? $_POST['event_type']  ?? '';
+    $eventType  = $_GET['event_id']  ?? $_POST['event_id']  ?? '';
     $eventDate  = $_GET['date']        ?? $_POST['event_date']  ?? '';
     $eventTime  = $_GET['time']        ?? $_POST['event_time']  ?? '';
     $duration   = $_GET['duration']    ?? $_POST['duration']    ?? '';
@@ -191,8 +191,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
 
         // Re-read selected booking IDs passed as hidden fields
         $hiddenBookingIds = [];
-        if (!empty($_POST['booking_ids'])) {
-            foreach ((array) $_POST['booking_ids'] as $bid) {
+        if (!empty($_POST['cart_ids'])) {
+            foreach ((array) $_POST['cart_ids'] as $bid) {
                 $hiddenBookingIds[] = (int) $bid;
             }
         }
@@ -201,7 +201,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
         $dbCartId = null;
         if (!empty($hiddenBookingIds)) {
             $stmt = $conn->prepare(
-                "SELECT cart_id FROM bookings WHERE booking_id = ? AND user_id = ? LIMIT 1"
+                "SELECT cart_id FROM bookings WHERE cart_id = ? AND user_id = ? LIMIT 1"
             );
             $stmt->bind_param('ii', $hiddenBookingIds[0], $uid);
             $stmt->execute();
@@ -237,7 +237,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
             foreach ($hiddenBookingIds as $bookingId) {
                 $stmt = $conn->prepare(
                     "INSERT INTO payments
-                        (booking_id, amount, payment_method, payment_status, transaction_id, 
+                        (cart_id, amount, payment_method, payment_status, transaction_id, 
                          card_holder_name, card_last_four, card_expiry_month, card_expiry_year,
                          gcash_phone_number, gcash_account_name, payment_date)
                      VALUES (?, ?, ?, 'paid', ?, ?, ?, ?, ?, ?, ?, NOW())"
@@ -259,7 +259,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
             $types = str_repeat('i', count($hiddenBookingIds));
             $stmt  = $conn->prepare(
                 "UPDATE bookings SET status = 'confirmed'
-                 WHERE booking_id IN ($placeholders) AND user_id = ?"
+                 WHERE cart_id IN ($placeholders) AND user_id = ?"
             );
             $stmt->bind_param($types . 'i', ...[...$hiddenBookingIds, $uid]);
             $stmt->execute();
@@ -292,7 +292,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
         'phone'          => '+63' . $phone,
         'venue_name'     => $venueName ?: $_POST['form_venue_name'] ?? '',
         'venue_price'    => $venuePrice,
-        'event_type'     => $eventType  ?: $_POST['form_event_type'] ?? '',
+        'event_id'     => $eventType  ?: $_POST['form_event_id'] ?? '',
         'event_date'     => $eventDate  ?: $_POST['form_event_date'] ?? '',
         'event_time'     => $eventTime  ?: $_POST['form_event_time'] ?? '',
         'duration'       => $duration   ?: $_POST['form_duration']   ?? '',
@@ -393,12 +393,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
           <?php endif; ?>
 
           <?php foreach ($selectedBookingIds as $bid): ?>
-            <input type="hidden" name="booking_ids[]" value="<?= (int)$bid ?>">
+            <input type="hidden" name="cart_ids[]" value="<?= (int)$bid ?>">
           <?php endforeach; ?>
 
           <!-- Carry booking details for receipt -->
           <input type="hidden" name="form_venue_name"  value="<?= htmlspecialchars($venueName) ?>">
-          <input type="hidden" name="form_event_type"  value="<?= htmlspecialchars($eventType) ?>">
+          <input type="hidden" name="form_event_id"  value="<?= htmlspecialchars($eventType) ?>">
           <input type="hidden" name="form_event_date"  value="<?= htmlspecialchars($eventDate) ?>">
           <input type="hidden" name="form_event_time"  value="<?= htmlspecialchars($eventTime) ?>">
           <input type="hidden" name="form_duration"    value="<?= htmlspecialchars($duration) ?>">

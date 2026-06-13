@@ -111,7 +111,7 @@ $sql_queries = array(
         venue_id INT NOT NULL,
         event_date DATE NOT NULL,
         guest_count INT NOT NULL,
-        event_type VARCHAR(50),
+        event_id VARCHAR(50),
         venue_package VARCHAR(255),
         subtotal DECIMAL(12, 2),
         activities_total DECIMAL(12, 2) DEFAULT 0,

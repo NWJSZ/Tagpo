@@ -294,7 +294,7 @@ function stars(float $rating): string
 
             <div class="form-group">
               <label>Event Type</label>
-              <select class="form-control" name="event_type" required>
+              <select class="form-control" name="event_id" required>
                 <option value="">Search Event Type</option>
                 <option value="Wedding">Wedding</option>
                 <option value="Birthday / Debut">Birthday / Debut</option>
@@ -596,7 +596,7 @@ function stars(float $rating): string
 
       // Dynamic Add-ons Filtering Function
       function initAddonFilters() {
-        const eventSelect = document.querySelector('select[name="event_type"]');
+        const eventSelect = document.querySelector('select[name="event_id"]');
         const addonItems = document.querySelectorAll('.addon-group-item');
         const noEventMessage = document.getElementById('no-event-message');
 

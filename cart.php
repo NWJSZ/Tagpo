@@ -250,7 +250,7 @@ $backToVenueUrl = $_SESSION['last_venue_visited'] ?? 'search.php';
 
             <?php foreach ($cart as $index => $item): 
               $addonsTotal = 0;
-              $eventType = $item['event_type'] ?? '';
+              $eventType = $item['event_id'] ?? '';
               if (!empty($item['addons'])):
                 foreach ($item['addons'] as $addon):
                   $addonPrice = 0;
@@ -334,7 +334,7 @@ $backToVenueUrl = $_SESSION['last_venue_visited'] ?? 'search.php';
                     <p class="mb-2 text-muted small">
                       <i class="fa-solid fa-calendar-day me-1"></i> <?php echo htmlspecialchars($item['event_date']); ?>
                       <span class="mx-2" style="color: #e2e8f0;">|</span>
-                      <i class="fa-solid fa-star me-1"></i> <?php echo htmlspecialchars($item['event_type']); ?>
+                      <i class="fa-solid fa-star me-1"></i> <?php echo htmlspecialchars($item['event_id']); ?>
                     </p>
 
                     <div class="mb-3">

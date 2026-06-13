@@ -64,7 +64,7 @@ Tagpo/
 | Problem | Fix |
 |---|---|
 | Entire file only wrote to `$_SESSION['cart']` — nothing ever touched the database | Rewrote to perform full DB writes: `carts`, `bookings`, and `booking_addons` |
-| `event_type` was stored as a display label ("Birthday / Debut") — no mapping to `event.event_id` FK | Added `$eventNameMap` to translate front-end labels to DB `event_name` values, then queries `event_id` |
+| `event_id` was stored as a display label ("Birthday / Debut") — no mapping to `event.event_id` FK | Added `$eventNameMap` to translate front-end labels to DB `event_name` values, then queries `event_id` |
 | Add-on prices were hard-coded in 3 separate places (venue.php, cart.php, payment.php) — could drift out of sync | Now fetched directly from the `addons` DB table in a single prepared query |
 | Duration stored as string ("4 hours") but `bookings.duration` is `INT` | Strips non-numeric characters with `FILTER_SANITIZE_NUMBER_INT` before insertion |
 | No authentication guard — any visitor could POST | Added `isLoggedIn()` check; redirects to login if not authenticated |

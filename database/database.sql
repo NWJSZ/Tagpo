@@ -274,7 +274,7 @@ INSERT INTO addons (event_id, addon_name, price) VALUES
 -- ======================================================
 
 -- Get all addons for a specific event type
--- SELECT * FROM addons WHERE event_type_id = 1;
+-- SELECT * FROM addons WHERE event_id_id = 1;
 
 -- Get all bookings in a user's active cart
 -- SELECT b.* FROM bookings b

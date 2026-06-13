@@ -21,48 +21,39 @@ $sessionExpired = isset($_GET['session_expired']);
 $isLoggedIn = isLoggedIn();
 $isAdmin = isAdmin();
 
-// 2. Data Preparation
-$defaultVenues = [
-  [
-    'id'       => 1,
-    'name'     => 'Paradiso Terrestre',
-    'location' => 'Molino, Cavite City',
-    'price'    => '35,000',
-    'cap'      => 500,
-    'rating'   => 4.8,
-    'reviews'  => 36,
-    'tag'      => 'Wedding · Debut',
-    'image'    => 'assets/images/paradiso1.jpg',
-  ],
-  [
-    'id'       => 2,
-    'name'     => 'Blue Gardens',
-    'location' => 'Makati City',
-    'price'    => '60,000',
-    'cap'      => 250,
-    'rating'   => 4.9,
-    'reviews'  => 52,
-    'tag'      => 'Prom · Gala',
-    'image'    => 'assets/images/gardens1.jpg',
-  ],
-  [
-    'id'       => 3,
-    'name'     => 'The Green Lounge Events Place',
-    'location' => 'Quezon City',
-    'price'    => '45,000',
-    'cap'      => 300,
-    'rating'   => 4.7,
-    'reviews'  => 28,
-    'tag'      => 'Birthday · Corporate',
-    'image'    => 'assets/images/lounge1.jpg',
-  ],
-];
+// 2. Data Preparation — load venues live from the database
+$venueRows = $conn->query("
+    SELECT v.*,
+           COALESCE(AVG(r.rating), 0) AS avg_rating,
+           COUNT(r.review_id) AS review_count
+    FROM venues v
+    LEFT JOIN reviews r ON r.venue_id = v.id
+    GROUP BY v.id
+    ORDER BY v.id DESC
+")->fetch_all(MYSQLI_ASSOC);
 
-// Kunin ang venues mula sa session (yung mga in-add ni admin)
-$customVenues = $_SESSION['venues'] ?? [];
+// Pull amenities to build a short "tag" line per venue
+$amenitiesByVenue = [];
+$amenityRows = $conn->query("SELECT venue_id, amenity_name FROM amenities")->fetch_all(MYSQLI_ASSOC);
+foreach ($amenityRows as $row) {
+    $amenitiesByVenue[$row['venue_id']][] = $row['amenity_name'];
+}
 
-// Pagsamahin ang default at custom venues
-$venues = array_merge($defaultVenues, $customVenues);
+$venues = [];
+foreach ($venueRows as $v) {
+    $tags = $amenitiesByVenue[$v['id']] ?? [];
+    $venues[] = [
+        'id'       => (int) $v['id'],
+        'name'     => $v['name'],
+        'location' => $v['location'],
+        'price'    => number_format($v['price'], 0),
+        'cap'      => (int) $v['capacity'],
+        'rating'   => $v['review_count'] > 0 ? round($v['avg_rating'], 1) : 5.0,
+        'reviews'  => (int) $v['review_count'],
+        'tag'      => !empty($tags) ? implode(' · ', array_slice($tags, 0, 2)) : 'Featured Venue',
+        'image'    => $v['image_url'] ?: 'assets/images/default-venue.jpg',
+    ];
+}
 
 // Filter venues by location if search parameter exists
 $location = $_GET['location'] ?? '';
@@ -202,12 +193,12 @@ if (!empty($location)) {
         <div class="col-md-4 fade-up-<?php echo $i + 1; ?>">
           <div class="card venue-card h-100">
 
-            <?php if ($isAdmin && $v['id'] > 10): ?>
-              <a href="delete_venue.php?id=<?php echo $v['id']; ?>"
-                class="btn btn-danger btn-sm position-absolute"
+            <?php if ($isAdmin): ?>
+              <a href="admin/manage-venues.php?edit=<?php echo $v['id']; ?>"
+                class="btn btn-dark btn-sm position-absolute"
                 style="top: 10px; right: 10px; z-index: 5; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"
-                onclick="return confirm('Are you sure you want to remove this venue?')">
-                <i class="bi bi-trash"></i>
+                title="Manage this venue">
+                <i class="bi bi-pencil"></i>
               </a>
             <?php endif; ?>
 

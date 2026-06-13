@@ -248,7 +248,7 @@ function statusBadge(string $status): string {
                   <!-- Booking status badge -->
                   <div class="text-end">
                     <?= statusBadge($b['booking_status']) ?>
-                    <?php if ($b['payment_status']): ?>
+                    <?php if ($b['payment_status'] && $b['payment_status'] !== $b['booking_status']): ?>
                       <br><small class="text-muted mt-1 d-inline-block">
                         Payment: <?= statusBadge($b['payment_status']) ?>
                       </small>

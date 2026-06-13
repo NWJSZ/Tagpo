@@ -18,7 +18,7 @@ $userId = (int) $currentUser['id'];
 $venueId      = filter_input(INPUT_POST, 'venue_id',    FILTER_VALIDATE_INT);
 $venueName    = trim($_POST['venue_name']  ?? '');
 $venuePrice   = filter_input(INPUT_POST, 'venue_price', FILTER_VALIDATE_FLOAT);
-$eventType    = trim($_POST['event_type']  ?? '');
+$eventType    = trim($_POST['event_id']  ?? '');
 $eventDate    = trim($_POST['event_date']  ?? '');
 $eventTime    = trim($_POST['event_time']  ?? '');
 $durationRaw  = trim($_POST['duration']    ?? '');
@@ -124,10 +124,10 @@ $stmt->close();
 
 // ── Insert payment record ────────────────────────────────────────────
 $stmt = $conn->prepare(
-    "INSERT INTO payments (booking_id, amount, payment_method, payment_status, payment_date)
+    "INSERT INTO payments (cart_id, amount, payment_method, payment_status, payment_date)
      VALUES (?, ?, 'gcash', 'pending', NOW())"
 );
-$stmt->bind_param('id', $bookingId, $totalPrice);
+$stmt->bind_param('id', $cartId, $totalPrice);
 
 if (!$stmt->execute()) {
     error_log('Payment insert failed: ' . $stmt->error);
@@ -139,7 +139,7 @@ $stmt->close();
 // ── Insert booking_addons ─────────────────────────────────────────────────────
 if (!empty($addonPriceMap)) {
     $stmt = $conn->prepare(
-        "INSERT IGNORE INTO booking_addons (booking_id, addon_id, quantity, unit_price_at_booking)
+        "INSERT IGNORE INTO booking_addons (booking_id, addon_id, quantity, unit_price)
          VALUES (?, ?, 1, ?)"
     );
     foreach ($addons as $addonName) {
@@ -161,8 +161,6 @@ $_SESSION['cart'][] = [
     'venue_id'    => $venueId,
     'venue_name'  => $venueName,
     'venue_price' => $venuePrice,
-    'event_type'  => $eventType,
-    'event_id'    => $eventId,
     'event_date'  => $eventDate,
     'event_time'  => $eventTime,
     'duration'    => $durationRaw,
