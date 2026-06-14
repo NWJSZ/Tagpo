@@ -42,7 +42,38 @@ CREATE TABLE venues (
     description TEXT,
     image_url VARCHAR(255)
 );
+-- =====================================================
+-- VENUE GALLERY
+-- =====================================================
 
+CREATE TABLE venue_gallery (
+    gallery_id INT AUTO_INCREMENT PRIMARY KEY,
+    venue_id   INT NOT NULL,
+    image_url  VARCHAR(255) NOT NULL,
+    label      VARCHAR(100) DEFAULT NULL,
+    sort_order TINYINT UNSIGNED DEFAULT 0,
+
+    FOREIGN KEY (venue_id)
+        REFERENCES venues(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+);
+
+-- =====================================================
+-- VENUE HIGHLIGHTS
+-- =====================================================
+
+CREATE TABLE venue_highlights (
+    highlight_id INT AUTO_INCREMENT PRIMARY KEY,
+    venue_id     INT NOT NULL,
+    highlight    VARCHAR(255) NOT NULL,
+    sort_order   TINYINT UNSIGNED DEFAULT 0,
+
+    FOREIGN KEY (venue_id)
+        REFERENCES venues(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+);
 -- =====================================================
 -- AMENITIES
 -- =====================================================
@@ -300,6 +331,60 @@ INSERT INTO addons (event_id, addon_name, price) VALUES
 
 -- Amenities
 INSERT INTO amenities (venue_id, amenity_name) VALUES
-(1, 'Parking Available'), (1, 'Wi-Fi'), (1, 'Air Conditioning'), (1, 'Outdoor Space'),
-(2, 'Parking Available'), (2, 'Wi-Fi'), (2, 'Garden Area'),      (2, 'Audio System'),
-(3, 'Parking Available'), (3, 'Wi-Fi'), (3, 'Air Conditioning'), (3, 'Stage');
+(1, '🅿️|Free Parking'),
+(1, '❄️|Air Conditioning'),
+(1, '🎤|Sound System'),
+(1, '💡|Stage Lighting'),
+(1, '📽️|Projector & Screen'),
+(1, '♿|Wheelchair Access'),
+(1, '🛡️|24/7 Security'),
+(1, '📶|Free Wi-Fi'),
+(2, '🅿️|Valet Parking'),
+(2, '❄️|Central Air Conditioning'),
+(2, '🎤|Professional Sound System'),
+(2, '🍽️|In-House Catering'),
+(2, '📽️|LED Wall Display'),
+(2, '♿|Wheelchair Access'),
+(2, '💐|Floral Arrangements'),
+(2, '📶|High-Speed Wi-Fi'),
+(3, '🅿️|Free Parking (100 slots)'),
+(3, '❄️|Industrial AC System'),
+(3, '🎤|Premium Sound System'),
+(3, '💡|Architectural Lighting'),
+(3, '📽️|Twin Projectors'),
+(3, '♿|Wheelchair Access'),
+(3, '🛡️|24/7 Security'),
+(3, '📶|Free Wi-Fi');
+
+-- Gallery images
+INSERT INTO venue_gallery (venue_id, image_url, label, sort_order) VALUES
+(1, 'assets/images/paradiso1.jpg', 'Garden Terrace', 1),
+(1, 'assets/images/paradiso2.jpg', 'Main Hall',      2),
+(1, 'assets/images/paradiso3.jpg', 'Al Fresco',      3),
+(1, 'assets/images/paradiso4.jpg', 'Bridal Suite',   4),
+(1, 'assets/images/paradiso5.jpg', 'Ballroom',       5),
+(2, 'assets/images/gardens1.jpg',  'Garden Terrace', 1),
+(2, 'assets/images/gardens2.jpg',  'Main Hall',      2),
+(2, 'assets/images/gardens3.jpg',  'Al Fresco',      3),
+(2, 'assets/images/gardens4.jpg',  'Bridal Suite',   4),
+(2, 'assets/images/gardens5.jpg',  'Ballroom',       5),
+(3, 'assets/images/lounge1.jpg',   'Garden Terrace', 1),
+(3, 'assets/images/lounge2.jpg',   'Main Hall',      2),
+(3, 'assets/images/lounge3.jpg',   'Al Fresco',      3),
+(3, 'assets/images/lounge4.jpg',   'Bridal Suite',   4),
+(3, 'assets/images/lounge5.png',   'Ballroom',       5);
+
+-- Venue highlights
+INSERT INTO venue_highlights (venue_id, highlight, sort_order) VALUES
+(1, 'Multi-functional event space for any occasion',          1),
+(1, 'Easy access to public transportation & major highways',  2),
+(1, 'Large outdoor and indoor venues available',              3),
+(1, 'Just 10 minutes from Alabang via Daang Hari & MCX',      4),
+(2, 'Luxury ballroom with premium interior design',           1),
+(2, 'In-house catering with curated menus available',         2),
+(2, 'Prime Makati location — walking distance from hotels',   3),
+(2, 'Dedicated event coordinator for every booking',          4),
+(3, 'Modern minimalist design with architectural lighting',   1),
+(3, 'Flexible layout — ideal for any event type',             2),
+(3, 'Located along a major QC thoroughfare',                  3),
+(3, 'Ample free parking for up to 100 vehicles',              4);
