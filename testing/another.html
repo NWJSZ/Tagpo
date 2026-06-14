@@ -1,0 +1,536 @@
+<style>
+  :root {
+    --bg-primary: var(--color-background-primary, #ffffff);
+    --bg-secondary: var(--color-background-secondary, #f8fafc);
+    --bg-tertiary: var(--color-background-tertiary, #f1f5f9);
+    --border-color: var(--color-border-tertiary, #e2e8f0);
+    --text-main: var(--color-text-primary, #0f172a);
+    --text-muted: var(--color-text-secondary, #64748b);
+    
+    --color-pass: #10b981;
+    --color-pass-bg: #ecfdf5;
+    --color-fail: #f43f5e;
+    --color-fail-bg: #fff1f2;
+    --color-warn: #f59e0b;
+    --color-warn-bg: #fffbeb;
+    --color-pending: #94a3b8;
+    --color-pending-bg: #f8fafc;
+  }
+
+  .qa-container {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 1.5rem;
+    background: var(--bg-primary);
+    color: var(--text-main);
+  }
+
+  .dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+
+  .dashboard-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text-main);
+  }
+
+  .master-report-btn {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    background: linear-gradient(135deg, #e11d48, #be123c);
+    color: #ffffff;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(225, 29, 72, 0.25);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .master-report-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(225, 29, 72, 0.35);
+    background: linear-gradient(135deg, #f43f5e, #e11d48);
+  }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 2rem;
+  }
+
+  .stat-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem;
+    text-align: left;
+  }
+
+  .stat-num {
+    font-size: 26px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+
+  .stat-lbl {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-top: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .module-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 1.25rem;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  }
+
+  .module-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .module-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-main);
+    flex: 1;
+  }
+
+  .badge {
+    font-size: 11px;
+    padding: 4px 12px;
+    border-radius: 30px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .badge-pending { background: var(--bg-tertiary); color: var(--text-muted); }
+  .badge-pass { background: var(--color-pass-bg); color: var(--color-pass); }
+  .badge-fail { background: var(--color-fail-bg); color: var(--color-fail); }
+  .badge-warn { background: var(--color-warn-bg); color: var(--color-warn); }
+
+  .progress-bar {
+    height: 6px;
+    border-radius: 99px;
+    background: var(--bg-tertiary);
+    margin: 14px 0 0;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: var(--color-pass);
+    transition: width 0.4s ease, background-color 0.3s;
+  }
+
+  .tests-body {
+    margin-top: 12px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 8px;
+  }
+
+  .test-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 8px;
+    border-radius: 8px;
+    font-size: 13.5px;
+  }
+  
+  .test-row:hover {
+    background-color: var(--bg-secondary);
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dot-pending { background: var(--color-pending); }
+  .dot-pass { background: var(--color-pass); box-shadow: 0 0 8px rgba(16, 185, 129, 0.4); }
+  .dot-fail { background: var(--color-fail); box-shadow: 0 0 8px rgba(244, 63, 94, 0.4); }
+  .dot-warn { background: var(--color-warn); box-shadow: 0 0 8px rgba(245, 158, 11, 0.4); }
+
+  .test-label {
+    flex: 1;
+    color: var(--text-main);
+  }
+
+  .status-btn {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    color: var(--text-main);
+    min-width: 75px;
+  }
+
+  .icon { font-size: 16px; color: var(--text-muted); }
+  .module-toggle { font-size: 12px; color: var(--text-muted); transition: transform 0.2s ease; }
+  .module-toggle.open { transform: rotate(180deg); }
+
+  /* ── MODAL WINDOW SYSTEM (SIGURADONG GAGANA KAHIT SAAN) ── */
+  .modal-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    padding: 1rem;
+  }
+
+  .modal-box {
+    background: var(--bg-primary);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 550px;
+    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.15);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    animation: modalShow 0.2s ease-out;
+  }
+
+  @keyframes modalShow {
+    from { transform: scale(0.95); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  .modal-header {
+    padding: 1.25rem;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .modal-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-main);
+  }
+
+  .modal-close {
+    background: transparent; border: none; font-size: 18px; cursor: pointer; color: var(--text-muted);
+  }
+
+  .modal-body {
+    padding: 1.25rem;
+  }
+
+  .modal-textarea {
+    width: 100%;
+    height: 180px;
+    background: #0f172a;
+    color: #38bdf8;
+    font-family: Fira Code, Consolas, Monaco, monospace;
+    font-size: 12px;
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    resize: none;
+    margin-bottom: 1rem;
+  }
+
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .btn-secondary {
+    background: var(--bg-tertiary); color: var(--text-main); border: none;
+    padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+
+  .btn-primary {
+    background: #0284c7; color: white; border: none;
+    padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .btn-primary:hover { background: #0369a1; }
+</style>
+
+<h2 class="sr-only">Tagpo QA Testing Dashboard — track test results across all modules</h2>
+
+<div class="qa-container">
+  <div class="dashboard-header">
+    <div class="header-left">
+      <span class="dashboard-title">Tagpo QA Dashboard</span>
+      <span id="session-time" style="font-size:13px; font-weight: 500; color:var(--text-muted)"></span>
+    </div>
+    <button class="master-report-btn" onclick="compileAndReportIssues()">
+      Compile Failing Tests ↗
+    </button>
+  </div>
+
+  <div class="summary-grid">
+    <div class="stat-card">
+      <div class="stat-num" style="color: var(--text-main)" id="s-total">0</div>
+      <div class="stat-lbl">Total tests</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color: var(--color-pass)" id="s-pass">0</div>
+      <div class="stat-lbl">Passed</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color: var(--color-fail)" id="s-fail">0</div>
+      <div class="stat-lbl">Failed</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color: var(--color-warn)" id="s-warn">0</div>
+      <div class="stat-lbl">Warnings</div>
+    </div>
+  </div>
+
+  <div id="modules-container"></div>
+</div>
+
+<div class="modal-overlay" id="reportModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">🚨 Compiled QA Diagnostics Report</span>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 10px;">
+        Na-compile na ang mga errors bff! I-copy mo ang text sa ibaba at i-paste mo sa chat natin para magawan ko agad ng tamang SQL queries at fix.
+      </p>
+      <textarea class="modal-textarea" id="modalTextPayload" readonly></textarea>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeModal()">Close</button>
+        <button class="btn-primary" id="copyBtn" onclick="copyModalText()">Copy Report</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const modules = [
+  {
+    id: 'users', icon: 'ti-users', label: 'Users & Authentication Module',
+    tests: [
+      { id:'u1', label:'Admin Panel: users table syncs exactly with matching SELECT id, role, is_active FROM users' },
+      { id:'u2', label:'UI Profile: Data fields strict-match against target columns (email, contact_num, profile_img)' },
+      { id:'u3', label:'Booking History: SELECT * FROM bookings WHERE user_id = ? fetches exact operational array length' },
+      { id:'u4', label:'Strict Null Check: No undefined indices or PHP notices when handling optional DB columns' },
+      { id:'u5', label:'SQL Injection & Character Escaping: Input strings handling special chars safely (e.g., O\'Brien)' },
+    ]
+  },
+  {
+    id: 'bookings', icon: 'ti-calendar', label: 'Bookings Transaction Module',
+    tests: [
+      { id:'b1', label:'E2E Booking Flow: INSERT INTO bookings creates entry and yields primary key transaction context' },
+      { id:'b2', label:'Admin View Sync: Real-time query fetch validation for new rows inside dashboard layout' },
+      { id:'b3', label:'Foreign Key Integration: Correct matching of related schema entities (user_id, venue_id, event_id)' },
+      { id:'b4', label:'Data Consistency Validation: Form fields align perfectly with booking_date, guest_count, and total_price types' },
+      { id:'b5', label:'UI Layout Integrity: Booking detail modal opens with complete parsed data strings without truncation' },
+      { id:'b6', label:'Race Condition Check: Concurrent reservation triggers block duplicate entries for identical timestamp/venue slots' },
+    ]
+  },
+  {
+    id: 'venues', icon: 'ti-building', label: 'Venues Resource Management',
+    tests: [
+      { id:'v1', label:'Create Venue Action: Form fields successfully propagate into venues schema columns' },
+      { id:'v2', label:'Update Venue Action: Submitting modifications triggers dynamic UPDATE scripts on UI re-eval' },
+      { id:'v3', label:'Static Assets Routing: Upload component writes files properly and accurately registers image paths' },
+      { id:'v4', label:'Text Processing: Descriptors (highlights, amenities) commit safely via JSON strings or TEXT blobs' },
+      { id:'v5', label:'Data Boundaries: UI and backend enforce schema limits on max_capacity and price_per_hour variables' },
+      { id:'v6', label:'Relational Joins: Associated events data renders properly inside contextual pages (venue.php)' },
+    ]
+  },
+  {
+    id: 'events', icon: 'ti-star', label: 'Events & Add-ons Architecture',
+    tests: [
+      { id:'e1', label:'Create Event Action: Payload structure properly persists on execution into events database table' },
+      { id:'e2', label:'Sync Management View: Live records render changes correctly within operational data tables' },
+      { id:'e3', label:'Cascade Integrity: soft-delete or active state logic updates associated views seamlessly' },
+      { id:'e4', label:'Cross-reference Mapping: Target event IDs register properly inside venue rendering logic' },
+      { id:'e5', label:'Dynamic Target Lookup: Target product templates list properties without faults inside venue.php' },
+      { id:'e6', label:'Add-on Relationships: Sub-entities write foreign keys safely linking back to primary table records' },
+      { id:'e7', label:'Transactional Flow: Associated operational modules process active optional line items in final computation' },
+    ]
+  },
+  {
+    id: 'payments', icon: 'ti-credit-card', label: 'Payments & Status Synchronization',
+    tests: [
+      { id:'p1', label:'Card Transaction Pipeline: Webhook or api responses instantly flag transaction column as \'Paid\'' },
+      { id:'p2', label:'E-wallet Transaction State: Processing rules immediately drop entry state to default \'Pending\'' },
+      { id:'p3', label:'State Upgrades: Manual override updates transaction records safely from \'Pending\' to \'Paid\'' },
+      { id:'p4', label:'State Rejections: Decline commands safely flag active transaction records to \'Failed\'' },
+      { id:'p5', label:'Reversal Processing: Refund routines adjust systemic values tracking structural totals safely' },
+      { id:'p6', label:'Omni-channel Sync: Multi-page UI components resolve unified transaction states across layout endpoints' },
+      { id:'p7', label:'Orphan Row Prevention: Canceling structural entities removes or decouples dependent transaction items via constraints' },
+    ]
+  }
+];
+
+const state = {};
+modules.forEach(m => m.tests.forEach(t => state[t.id] = 'pending'));
+
+function getStatus(id) { return state[id]; }
+function cycleStatus(id) {
+  const cycle = { pending: 'pass', pass: 'fail', fail: 'warn', warn: 'pending' };
+  state[id] = cycle[state[id]];
+  render();
+}
+
+function dotClass(s) { return 'dot-'+s; }
+function badgeLabel(s) { return { pending:'Pending', pass:'Pass', fail:'Fail', warn:'Warning' }[s]; }
+function badgeClass(s) { return 'badge badge-'+(s==='pass'?'pass':s==='fail'?'fail':s==='warn'?'warn':'pending'); }
+
+function updateSummary() {
+  const all = Object.values(state);
+  document.getElementById('s-total').textContent = all.length;
+  document.getElementById('s-pass').textContent = all.filter(s=>s==='pass').length;
+  document.getElementById('s-fail').textContent = all.filter(s=>s==='fail').length;
+  document.getElementById('s-warn').textContent = all.filter(s=>s==='warn').length;
+}
+
+function render() {
+  updateSummary();
+  const container = document.getElementById('modules-container');
+  container.innerHTML = '';
+  modules.forEach(m => {
+    const tests = m.tests;
+    const passed = tests.filter(t => state[t.id]==='pass').length;
+    const failed = tests.filter(t => state[t.id]==='fail').length;
+    const warned = tests.filter(t => state[t.id]==='warn').length;
+    const pct = Math.round((passed / tests.length) * 100);
+    
+    const overallBadge = failed > 0 ? 'fail' : warned > 0 ? 'warn' : passed === tests.length ? 'pass' : 'pending';
+    
+    let progressColor = 'var(--color-pass)';
+    if (failed > 0) progressColor = 'var(--color-fail)';
+    else if (warned > 0) progressColor = 'var(--color-warn)';
+    else if (passed === 0) progressColor = 'var(--bg-tertiary)';
+
+    const card = document.createElement('div');
+    card.className = 'module-card';
+    card.innerHTML = `
+      <div class="module-header" onclick="toggleModule('${m.id}')">
+        <i class="ti ${m.icon} icon" aria-hidden="true"></i>
+        <span class="module-title">${m.label}</span>
+        <span style="font-size:13px; font-weight:600; color:var(--text-muted); margin-right:6px;">${passed}/${tests.length}</span>
+        <span class="${badgeClass(overallBadge)}">${badgeLabel(overallBadge)}</span>
+        <i class="ti ti-chevron-down module-toggle ${document.getElementById('body-'+m.id)?.classList.contains('open') ? 'open' : ''}" id="toggle-icon-${m.id}" aria-hidden="true"></i>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%; background-color:${progressColor}"></div></div>
+      <div class="tests-body" id="body-${m.id}" style="display:none;">
+        ${tests.map(t => `
+          <div class="test-row">
+            <span class="status-dot ${dotClass(state[t.id])}"></span>
+            <span class="test-label">${t.label}</span>
+            <button class="status-btn" onclick="event.stopPropagation();cycleStatus('${t.id}')">${badgeLabel(state[t.id])}</button>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    container.appendChild(card);
+    const prevOpen = localStorage && localStorage.getItem('tagpo-open-'+m.id);
+    if (prevOpen === 'true') {
+      const body = card.querySelector('#body-'+m.id);
+      const icon = card.querySelector('#toggle-icon-'+m.id);
+      if (body) body.style.display = 'block';
+      if (icon) icon.classList.add('open');
+    }
+  });
+}
+
+function toggleModule(id) {
+  const body = document.getElementById('body-'+id);
+  const icon = document.getElementById('toggle-icon-'+id);
+  if (!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  icon.classList.toggle('open', !isOpen);
+  if (localStorage) localStorage.setItem('tagpo-open-'+id, !isOpen);
+}
+
+// Ligtas at Independent na Compiler Function na may Modal System
+function compileAndReportIssues() {
+  const issues = [];
+  
+  modules.forEach(m => {
+    m.tests.forEach(t => {
+      const currentStatus = state[t.id];
+      if (currentStatus === 'fail' || currentStatus === 'warn') {
+        issues.push(`- [${currentStatus.toUpperCase()}] Module: ${m.label} | Test: ${t.label} (ID: ${t.id})`);
+      }
+    });
+  });
+
+  if (issues.length === 0) {
+    alert("Walang sira bff! Subukan mong palitan ang status ng ilang tests para maging 'Fail' o 'Warning' muna bago mo i-compile.");
+    return;
+  }
+
+  const compiledPrompt = `The following QA verification diagnostics failed or triggered warnings during local staging:
+${issues.join('\n')}
+
+Please review these systemic discrepancies against the matching SQL schemas, analyze the structural breaks between the backend rows and UI view models, and output specific debugging parameters along with the correct SQL statements to cross-verify and resolve these bugs.`;
+
+  // I-load ang report sa loob ng modern modal window natin
+  document.getElementById('modalTextPayload').value = compiledPrompt;
+  document.getElementById('reportModal').style.display = 'flex';
+  document.getElementById('copyBtn').textContent = 'Copy Report';
+}
+
+function closeModal() {
+  document.getElementById('reportModal').style.display = 'none';
+}
+
+function copyModalText() {
+  const textarea = document.getElementById('modalTextPayload');
+  textarea.select();
+  textarea.setSelectionRange(0, 99999);
+  navigator.clipboard.writeText(textarea.value);
+  
+  document.getElementById('copyBtn').textContent = 'Copied! ✅';
+}
+
+function setTime() {
+  const now = new Date();
+  document.getElementById('session-time').textContent = now.toLocaleTimeString();
+}
+
+render();
+setTime();
+setInterval(setTime, 1000);
+</script>

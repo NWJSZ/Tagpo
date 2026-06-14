@@ -1,0 +1,316 @@
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css" rel="stylesheet">
+
+<style>
+  body {
+    background-color: #f8fafc;
+    color: #0f172a;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+  .stat-box {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 15px;
+  }
+  .module-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin-bottom: 12px;
+  }
+  .module-header {
+    cursor: pointer;
+    padding: 15px;
+    background-color: #ffffff;
+  }
+  .test-row {
+    padding: 10px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 14px;
+  }
+  .test-row:last-child {
+    border-bottom: none;
+  }
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .dot-pending { background: #64748b; }
+  .dot-pass { background: #10b981; }
+  .dot-fail { background: #f43f5e; }
+  .dot-warn { background: #f59e0b; }
+  .status-btn {
+    font-size: 12px;
+    min-width: 85px;
+  }
+  .modal-textarea {
+    background: #0f172a;
+    color: #38bdf8;
+    font-family: monospace;
+    font-size: 13px;
+    height: 200px;
+  }
+</style>
+
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+    <div>
+      <h1 class="h4 fw-bold mb-0">Tagpo QA Checklist Dashboard</h1>
+      <small id="session-time" class="text-muted"></small>
+    </div>
+    <button class="btn btn-danger btn-sm fw-bold px-3" onclick="compileAndReportIssues()">
+      Compile Failing Tests
+    </button>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="stat-box text-center">
+        <div class="h3 fw-bold mb-0" id="s-total">0</div>
+        <small class="text-muted fw-semibold">TOTAL TESTS</small>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-box text-center">
+        <div class="h3 fw-bold text-success mb-0" id="s-pass">0</div>
+        <small class="text-muted fw-semibold">PASSED</small>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-box text-center">
+        <div class="h3 fw-bold text-danger mb-0" id="s-fail">0</div>
+        <small class="text-muted fw-semibold">FAILED</small>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-box text-center">
+        <div class="h3 fw-bold text-warning mb-0" id="s-warn">0</div>
+        <small class="text-muted fw-semibold">WARNINGS</small>
+      </div>
+    </div>
+  </div>
+
+  <div id="modules-container"></div>
+</div>
+
+<div class="modal fade" id="reportModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold text-danger">Compiled QA Errors Report</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small">I-copy ang text sa ibaba para ipasa sa database setup support:</p>
+        <textarea class="form-control modal-textarea mb-3" id="modalTextPayload" readonly></textarea>
+        <div class="d-flex justify-content-end gap-2">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary btn-sm" id="copyBtn" onclick="copyModalText()">Copy Data</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+const modules = [
+  {
+    id: 'auth', icon: 'bi-box-arrow-in-right', label: 'Sign In & Sign Up UI Inputs',
+    tests: [
+      { id: 'au1', label: 'Sign In Form fields validation (email add, password, forgot password link)' },
+      { id: 'au2', label: 'Sign Up Insertion validations (first name, last name, email add, phone number, password)' }
+    ]
+  },
+  {
+    id: 'search', icon: 'bi-search', label: 'Search System Inputs',
+    tests: [
+      { id: 'se1', label: 'Search filter field inputs (where text, event type dropdown, how many number type, max budget number type)' }
+    ]
+  },
+  {
+    id: 'venue_data', icon: 'bi-building', label: 'Venue UI & Database Columns',
+    tests: [
+      { id: 've1', label: 'Database matches UI fields (view pictures, about/description text, amenity list, capacity number, location, price, review entries)' }
+    ]
+  },
+  {
+    id: 'booking_data', icon: 'bi-calendar-check', label: 'Booking UI & Database Columns',
+    tests: [
+      { id: 'bk1', label: 'Booking entry writes completely (name, event type, event date, event time, duration, number of guest, add ons choices)' }
+    ]
+  },
+  {
+    id: 'cart_data', icon: 'bi-cart', label: 'Cart UI & Database Columns',
+    tests: [
+      { id: 'ct1', label: 'Cart storage captures specific variables (add ons, date selected, total price computation, location, venue name)' }
+    ]
+  },
+  {
+    id: 'checkout_data', icon: 'bi-credit-card', label: 'Checkout & Payment Methods Handling',
+    tests: [
+      { id: 'ch1', label: 'Checkout structural display inputs (name, event name, venue name, add ons and prices breakdown, total price evaluation)' },
+      { id: 'ch2', label: 'Credit/Debit Card payment variables schema check (name, email, number, year, month, cvv)' },
+      { id: 'ch3', label: 'GCash payment processing target parameters check (name, number)' }
+    ]
+  },
+  {
+    id: 'my_bookings', icon: 'bi-journal-text', label: 'My Bookings History UI & Database State',
+    tests: [
+      { id: 'mb1', label: 'System status updates to Confirm / Paid if payment method is Credit/Debit Card' },
+      { id: 'mb2', label: 'System status drops to Pending state queue if payment method selected is GCash' },
+      { id: 'mb3', label: 'Historical component renders fields completely (date, price, venue name, add ons list, event name)' }
+    ]
+  },
+  {
+    id: 'reviews', icon: 'bi-star', label: 'Reviews UI & Database Integration',
+    tests: [
+      { id: 'rv1', label: 'End-user can add new evaluation comments and it writes directly to backend review tables' },
+      { id: 'rv2', label: 'Public layout displays accurate dynamic summaries fetched from database records' }
+    ]
+  },
+  {
+    id: 'admin_dashboard', icon: 'bi-sliders', label: 'Admin Dashboard Components',
+    tests: [
+      { id: 'ad1', label: 'Manage Users: Data tables display user id, full name, email, role, and bookings count (with functional sidebar links)' },
+      { id: 'ad2', label: 'Manage Bookings: Complete administrative log visibility (venue id, add ons, payment state, name, email)' },
+      { id: 'ad3', label: 'Manage Venues Directory: Actions control Edit/Archive states (location, capacity, price, amenities, description, cover photo, gallery, highlights)' },
+      { id: 'ad4', label: 'Manage Events Catalog: Controls templates configurations (events names, add ons, add on prices)' },
+      { id: 'ad5', label: 'Manage Payments Control: Admin manually flags GCash as confirmed/failed and sets card logs to confirmed/refunded' }
+    ]
+  }
+];
+
+const state = {};
+modules.forEach(m => m.tests.forEach(t => state[t.id] = 'pending'));
+
+function cycleStatus(id) {
+  const cycle = { pending: 'pass', pass: 'fail', fail: 'warn', warn: 'pending' };
+  state[id] = cycle[state[id]];
+  render();
+}
+
+function updateSummary() {
+  const all = Object.values(state);
+  document.getElementById('s-total').textContent = all.length;
+  document.getElementById('s-pass').textContent = all.filter(s=>s==='pass').length;
+  document.getElementById('s-fail').textContent = all.filter(s=>s==='fail').length;
+  document.getElementById('s-warn').textContent = all.filter(s=>s==='warn').length;
+}
+
+function render() {
+  updateSummary();
+  const container = document.getElementById('modules-container');
+  container.innerHTML = '';
+
+  modules.forEach(m => {
+    const tests = m.tests;
+    const passed = tests.filter(t => state[t.id]==='pass').length;
+    const failed = tests.filter(t => state[t.id]==='fail').length;
+    const warned = tests.filter(t => state[t.id]==='warn').length;
+    
+    let badgeClass = 'bg-secondary text-white';
+    if (failed > 0) badgeClass = 'bg-danger text-white';
+    else if (warned > 0) badgeClass = 'bg-warning text-dark';
+    else if (passed === tests.length) badgeClass = 'bg-success text-white';
+
+    const isCurrentlyOpen = localStorage && localStorage.getItem('tagpo-simple-open-'+m.id) === 'true';
+
+    const card = document.createElement('div');
+    card.className = 'module-card';
+    card.innerHTML = `
+      <div class="module-header d-flex align-items-center justify-content-between" onclick="toggleModule('${m.id}')">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi ${m.icon} text-muted"></i>
+          <span class="fw-bold text-dark m-0" style="font-size:15px;">${m.label}</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge ${badgeClass}" style="font-size:11px;">${failed > 0 ? 'FAIL' : warned > 0 ? 'WARN' : passed === tests.length ? 'PASS' : 'PENDING'}</span>
+          <i class="bi bi-chevron-down text-muted" id="chevron-${m.id}" style="transform: ${isCurrentlyOpen ? 'rotate(180deg)' : 'none'}"></i>
+        </div>
+      </div>
+      <div class="p-3 border-top bg-light" id="body-${m.id}" style="display: ${isCurrentlyOpen ? 'block' : 'none'};">
+        <div class="d-flex flex-column gap-2">
+          ${tests.map(t => {
+            let dotClass = 'dot-pending';
+            let btnClass = 'btn-outline-secondary';
+            let label = 'Pending';
+            
+            if (state[t.id] === 'pass') { dotClass = 'dot-pass'; btnClass = 'btn-success text-white'; label = 'Pass'; }
+            if (state[t.id] === 'fail') { dotClass = 'dot-fail'; btnClass = 'btn-danger text-white'; label = 'Fail'; }
+            if (state[t.id] === 'warn') { dotClass = 'dot-warn'; btnClass = 'btn-warning text-dark'; label = 'Warning'; }
+
+            return `
+              <div class="test-row d-flex align-items-center justify-content-between bg-white border rounded p-2">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="status-dot ${dotClass}"></span>
+                  <span class="text-secondary">${t.label}</span>
+                </div>
+                <button class="btn btn-sm ${btnClass} status-btn" onclick="event.stopPropagation();cycleStatus('${t.id}')">${label}</button>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function toggleModule(id) {
+  const body = document.getElementById('body-'+id);
+  const chevron = document.getElementById('chevron-'+id);
+  if (!body) return;
+  const isHidden = body.style.display === 'none';
+  body.style.display = isHidden ? 'block' : 'none';
+  chevron.style.transform = isHidden ? 'rotate(180deg)' : 'none';
+  if (localStorage) localStorage.setItem('tagpo-simple-open-'+id, isHidden);
+}
+
+function compileAndReportIssues() {
+  const issues = [];
+  modules.forEach(m => {
+    m.tests.forEach(t => {
+      const currentStatus = state[t.id];
+      if (currentStatus === 'fail' || currentStatus === 'warn') {
+        issues.push(`- [${currentStatus.toUpperCase()}] Category: ${m.label} -> Specification target: ${t.label}`);
+      }
+    });
+  });
+
+  if (issues.length === 0) {
+    alert("Walang nakitang functional errors. Lahat ay naka Pass o Pending.");
+    return;
+  }
+
+  const compiledPrompt = `The following functional QA requirements from the user specification layout checklist failed on current staging review:
+${issues.join('\n')}
+
+Review the specifications listed, analyze if the field mappings are missing or corrupt between UI forms and corresponding tables, and provide the precise SQL schema adjustment suggestions to resolve the errors.`;
+
+  document.getElementById('modalTextPayload').value = compiledPrompt;
+  const myModal = new bootstrap.Modal(document.getElementById('reportModal'));
+  myModal.show();
+  document.getElementById('copyBtn').textContent = 'Copy Data';
+}
+
+function copyModalText() {
+  const textarea = document.getElementById('modalTextPayload');
+  textarea.select();
+  navigator.clipboard.writeText(textarea.value);
+  document.getElementById('copyBtn').textContent = 'Copied! ✅';
+}
+
+function setTime() {
+  const now = new Date();
+  document.getElementById('session-time').textContent = 'System Active Time: ' + now.toLocaleTimeString();
+}
+
+render();
+setTime();
+setInterval(setTime, 1000);
+</script>
