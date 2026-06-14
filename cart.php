@@ -13,21 +13,92 @@ if (isset($_SESSION['current_user'])) {
     setcookie('user_session', $_SESSION['current_user']['email'], time() + (60 * 60 * 24 * 7), '/');
 }
 
-// All-in-One Logic para sa pagbura ng item
-if (isset($_GET['action']) && $_GET['action'] === 'remove' && isset($_GET['id'])) {
-    $indexToRemove = (int)$_GET['id'];
+if (!isLoggedIn()) {
+    header('Location: auth/login.php');
+    exit();
+}
 
-    if (isset($_SESSION['cart']) && is_array($_SESSION['cart'])) {
-        if (isset($_SESSION['cart'][$indexToRemove])) {
-            unset($_SESSION['cart'][$indexToRemove]);
-            $_SESSION['cart'] = array_values($_SESSION['cart']); 
-        }
-    }
+$currentUser = getCurrentUser();
+$userId = (int) $currentUser['id'];
+
+if (isset($_GET['action']) && $_GET['action'] === 'remove' && isset($_GET['id'])) {
+    $bookingIdToRemove = (int)$_GET['id'];
+
+    $delAddonsStmt = $conn->prepare("DELETE FROM booking_addons WHERE booking_id = ?");
+    $delAddonsStmt->bind_param('i', $bookingIdToRemove);
+    $delAddonsStmt->execute();
+    $delAddonsStmt->close();
+
+    $delBookingStmt = $conn->prepare("DELETE FROM bookings WHERE booking_id = ? AND user_id = ? AND status = 'pending'");
+    $delBookingStmt->bind_param('ii', $bookingIdToRemove, $userId);
+    $delBookingStmt->execute();
+    $delBookingStmt->close();
+
     header("Location: cart.php");
     exit();
 }
 
-$cart = $_SESSION['cart'] ?? [];
+$cart_items = [];
+
+$stmt = $conn->prepare("SELECT cart_id FROM carts WHERE user_id = ? AND status = 'active' LIMIT 1");
+$stmt->bind_param('i', $userId);
+$stmt->execute();
+$cartRow = $stmt->get_result()->fetch_assoc();
+$stmt->close();
+
+if ($cartRow) {
+    $cartId = (int) $cartRow['cart_id'];
+
+    $query = "SELECT 
+                b.booking_id, 
+                b.cart_id, 
+                b.venue_id, 
+                b.event_id, 
+                b.event_date, 
+                b.event_time, 
+                b.duration, 
+                b.guest_count, 
+                b.total_price,
+                v.name AS venue_name, 
+                v.price AS venue_price,
+                e.event_name AS event_type
+              FROM bookings b
+              JOIN venues v ON b.venue_id = v.id
+              JOIN event e ON b.event_id = e.event_id
+              WHERE b.cart_id = ? AND b.status = 'pending'
+              ORDER BY b.booking_id DESC";
+              
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param('i', $cartId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    while ($row = $result->fetch_assoc()) {
+        $bId = $row['booking_id'];
+        
+        $addonQuery = "SELECT a.addon_name 
+                       FROM booking_addons ba
+                       JOIN addons a ON ba.addon_id = a.addon_id
+                       WHERE ba.booking_id = ?";
+        $addonStmt = $conn->prepare($addonQuery);
+        $addonStmt->bind_param('i', $bId);
+        $addonStmt->execute();
+        $addonResult = $addonStmt->get_result();
+        
+        $addons = [];
+        while ($addonRow = $addonResult->fetch_assoc()) {
+            $addons[] = $addonRow['addon_name'];
+        }
+        $addonStmt->close();
+
+        $row['addons'] = $addons;
+        $cart_items[] = $row;
+    }
+    $stmt->close();
+}
+
+$_SESSION['cart'] = $cart_items;
+$cart = $_SESSION['cart'];
 
 // DITO NATIN PROPROSESO YUNG BACK TO LAST VENUE LOGIC:
 $backToVenueUrl = $_SESSION['last_venue_visited'] ?? 'search.php';
@@ -319,21 +390,24 @@ $backToVenueUrl = $_SESSION['last_venue_visited'] ?? 'search.php';
                 </div>
 
                 <div class="d-md-flex gap-4 w-100">
-                  <div class="item-image-sm flex-shrink-0 mb-3 mb-md-0">
-                    <i class="fa-solid fa-hotel fa-2x"></i>
+                  <div class="item-image-sm flex-shrink-0 mb-3 mb-md-0" style="width: 100px; height: 100px; overflow: hidden; border-radius: 8px;">
+                    <?php 
+                      $vName = strtolower($item['venue_name'] ?? '');
+                      $imgFile = (strpos($vName, 'paradiso') !== false) ? 'paradiso1.jpg' : ((strpos($vName, 'garden') !== false || strpos($vName, 'blue') !== false) ? 'gardens1.jpg' : 'lounge1.jpg');
+                    ?>
+                    <img src="assets/images/<?php echo $imgFile; ?>" style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px;">
                   </div>
 
                   <div class="flex-grow-1">
                     <div class="d-flex justify-content-between align-items-start">
                       <h5 class="mb-1 fw-bold" style="color: #2d3748;"><?php echo htmlspecialchars($item['venue_name']); ?></h5>
                       
-                      <button type="button" 
-                              class="btn text-danger text-decoration-none small p-0 remove-btn-trigger" 
+                      <button type="button" class="btn btn-sm btn-outline-danger" 
                               data-bs-toggle="modal" 
                               data-bs-target="#confirmDeleteModal" 
-                              data-index="<?php echo $index; ?>"
+                              data-index="<?php echo $item['booking_id']; ?>" 
                               data-venuename="<?php echo htmlspecialchars($item['venue_name']); ?>">
-                        <i class="fa-solid fa-trash-can me-1"></i> Remove
+                        Remove
                       </button>
                     </div>
 

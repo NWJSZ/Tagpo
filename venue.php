@@ -737,6 +737,80 @@ function stars(float $rating): string
     document.addEventListener('DOMContentLoaded', function() {
       initDatePicker();
       initAddonFilters();
+
+      const bookingForm = document.querySelector('form[action="add_to_cart.php"]');
+      
+      if (bookingForm) {
+        const eventSelect = document.querySelector('select[name="event_id"]');
+        const dateInput   = document.getElementById('event_date');
+        const timeSelect  = document.querySelector('select[name="event_time"]');
+        const duration    = document.querySelector('select[name="duration"]');
+        const guestInput  = document.getElementById('guestCount');
+
+        function clearFieldError(element) {
+          if (element) {
+            element.classList.remove('is-invalid');
+            const errorDiv = element.parentNode.querySelector('.invalid-feedback');
+            if (errorDiv) errorDiv.remove();
+          }
+        }
+
+        function showFieldError(element, message) {
+          if (element) {
+            clearFieldError(element);
+            element.classList.add('is-invalid');
+            
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'invalid-feedback';
+            errorDiv.style.display = 'block';
+            errorDiv.style.fontSize = '0.8rem';
+            errorDiv.style.marginTop = '4px';
+            errorDiv.innerText = message;
+            
+            element.parentNode.appendChild(errorDiv);
+          }
+        }
+
+        if (eventSelect) eventSelect.addEventListener('change', () => { if(eventSelect.value !== "") clearFieldError(eventSelect); });
+        if (dateInput)   dateInput.addEventListener('change', () => { if(dateInput.value !== "") clearFieldError(dateInput); });
+        if (timeSelect)  timeSelect.addEventListener('change', () => { if(timeSelect.value !== "") clearFieldError(timeSelect); });
+        if (duration)    duration.addEventListener('change', () => { if(duration.value !== "") clearFieldError(duration); });
+        if (guestInput)  guestInput.addEventListener('input', () => { if(guestInput.value !== "" && parseInt(guestInput.value) >= 1) clearFieldError(guestInput); });
+
+
+        bookingForm.addEventListener('submit', function(event) {
+          let hasError = false;
+
+          if (!eventSelect || eventSelect.value === "") {
+            showFieldError(eventSelect, "⚠️ Please select an event type.");
+            hasError = true;
+          }
+          if (!dateInput || dateInput.value === "") {
+            showFieldError(dateInput, "⚠️ Please select an event date.");
+            hasError = true;
+          }
+          if (!timeSelect || timeSelect.value === "") {
+            showFieldError(timeSelect, "⚠️ Please select a starting time.");
+            hasError = true;
+          }
+          if (!duration || duration.value === "") {
+            showFieldError(duration, "⚠️ Please select a package duration.");
+            hasError = true;
+          }
+          if (!guestInput || guestInput.value === "" || parseInt(guestInput.value) < 1) {
+            showFieldError(guestInput, "⚠️ Please specify a valid guest count.");
+            hasError = true;
+          }
+
+          if (hasError) {
+            event.preventDefault();
+            const firstInvalid = bookingForm.querySelector('.is-invalid');
+            if (firstInvalid) {
+              firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }
+        });
+      }
     });
   </script>
 
