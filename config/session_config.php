@@ -43,9 +43,9 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // ========================================
-// INACTIVITY TIMEOUT CHECK (10 minutes)
+// INACTIVITY TIMEOUT CHECK (30 minutes)
 // ========================================
-define('INACTIVITY_TIMEOUT', 600); // 10 minutes in seconds
+define('INACTIVITY_TIMEOUT', 1800); // 30 minutes in seconds (1800)
 
 if (isset($_SESSION['current_user'])) {
     // Check if last_activity is set
@@ -58,14 +58,17 @@ if (isset($_SESSION['current_user'])) {
     
     if ($inactivityTime > INACTIVITY_TIMEOUT) {
         // User is inactive, destroy session
+        session_unset();
         session_destroy();
         $_SESSION = [];
         
         // Clear user session cookie
-        setcookie('user_session', '', time() - 3600, '/');
+        if (isset($_COOKIE['user_session'])) {
+            setcookie('user_session', '', time() - 3600, '/');
+        }
         
-        // Redirect to login with timeout message
-        header("Location: " . getBaseUrl() . "index.php?session_expired=inactivity");
+        // Redirect directly to login page with the inactivity trigger message
+        header("Location: " . getBaseUrl() . "auth/login.php?session_expired=inactivity");
         exit();
     }
     
@@ -78,9 +81,10 @@ if (isset($_SESSION['current_user'])) {
 // ========================================
 if (isset($_SESSION['current_user']) && !isset($_COOKIE['user_session'])) {
     // User exists in session but cookie was cleared/expired
+    session_unset();
     session_destroy();
     $_SESSION = [];
-    header("Location: " . getBaseUrl() . "index.php?session_expired=true");
+    header("Location: " . getBaseUrl() . "auth/login.php?session_expired=true");
     exit();
 }
 
@@ -141,3 +145,4 @@ function isAdmin() {
 function getCartCount() {
     return isset($_SESSION['cart']) ? count($_SESSION['cart']) : 0;
 }
+?>

@@ -88,6 +88,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <i class="fa-solid fa-circle-check me-2"></i> Account created! Please sign in.
         </div>
       <?php endif; ?>
+
+      <!-- INACTIVITY KICK-OUT NOTIFICATION -->
+      <?php if (isset($_GET['session_expired']) && $_GET['session_expired'] === 'inactivity'): ?>
+        <div class="auth-alert" style="background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.25);color:#fcd34d;">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>
+        </div>
+      <?php endif; ?>
+
       <?php if ($error): ?>
         <div class="auth-alert">
           <i class="fa-solid fa-triangle-exclamation me-2"></i> <?= htmlspecialchars($error) ?>
