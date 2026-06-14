@@ -94,6 +94,37 @@ if ($selected) {
     $selected['reviews'] = $reviewCount;
     $selected['rating'] = round($totalRating / $reviewCount, 1);
   }
+
+  // ---------------------------------------------------------------
+  // FETCH ADD-ONS: INNER JOIN addons -> event using actual schema.
+  //   addons.event_id  -> event.event_id  (FK)
+  //   columns used    : addon_id, addon_name, price  (addons)
+  //                     event_id, event_name          (event)
+  // No image column on addons table -- omitted intentionally.
+  // ---------------------------------------------------------------
+  $addonsQuery = $conn->prepare(
+    "SELECT
+       a.addon_id    AS addon_id,
+       a.addon_name  AS addon_name,
+       a.price       AS addon_price,
+       e.event_name  AS event_type
+     FROM addons a
+     INNER JOIN event e ON a.event_id = e.event_id
+     ORDER BY e.event_name ASC, a.addon_name ASC"
+  );
+  $addonsQuery->execute();
+  $addonsResult = $addonsQuery->get_result();
+
+  // Group add-ons by event_name for easy rendering in the form loop
+  $addonsByEvent = [];
+  while ($row = $addonsResult->fetch_assoc()) {
+    $addonsByEvent[$row['event_type']][] = [
+      'id'    => (int) $row['addon_id'],
+      'name'  => $row['addon_name'],
+      'price' => (float) $row['addon_price'],
+    ];
+  }
+  $addonsQuery->close();
 }
 
 function stars(float $rating): string
@@ -259,46 +290,12 @@ function stars(float $rating): string
         <div class="section" id="amenities">
           <div class="section-title">Amenities &amp; Features</div>
           <div class="amenities-grid">
-            <?php 
-            // 1. KUNIN ANG AMENITIES DIREKTA SA DATABASE PARA SYNCED SA ADMIN!
-            $db_amenities = [];
-            if (isset($conn) && $selected) {
-                $v_id = (int)$selected['id'];
-                $amQuery = $conn->prepare("SELECT amenity_name FROM amenities WHERE venue_id = ?");
-                $amQuery->bind_param('i', $v_id);
-                $amQuery->execute();
-                $amResult = $amQuery->get_result();
-                while ($row = $amResult->fetch_assoc()) {
-                    $db_amenities[] = $row;
-                }
-                $amQuery->close();
-            }
-
-            // 2. KUNG WALANG LAMAN ANG DB, GAMITIN ANG BACKUP GALING SA HARDCODED ARRAY
-            $amenities_to_loop = !empty($db_amenities) ? $db_amenities : ($selected['amenities'] ?? []);
-
-            if (!empty($amenities_to_loop)): 
-              foreach ($amenities_to_loop as $a): 
-                // Sinisigurado nating gagana kahit 'amenity_name', 'label', o 'name' ang gamit na key
-                $raw_amenity = $a['amenity_name'] ?? $a['label'] ?? $a['name'] ?? '';
-                
-                if (!empty($raw_amenity)):
-                  // Hinihiwalay ang emoji at text gamit ang vertical pipe (|)
-                  $parts = explode('|', $raw_amenity);
-                  $icon  = isset($parts[1]) ? trim($parts[0]) : '✨'; 
-                  $label = isset($parts[1]) ? trim($parts[1]) : trim($parts[0]);
-            ?>
-                  <div class="amenity-item">
-                    <span><?php echo $icon; ?></span>
-                    <?php echo htmlspecialchars($label); ?>
-                  </div>
-            <?php 
-                endif;
-              endforeach; 
-            else: 
-            ?>
-              <p class="text-muted">No amenities listed for this venue.</p>
-            <?php endif; ?>
+            <?php foreach ($selected['amenities'] as $a): ?>
+              <div class="amenity-item">
+                <span><?php echo $a['icon']; ?></span>
+                <?php echo htmlspecialchars($a['label']); ?>
+              </div>
+            <?php endforeach; ?>
           </div>
         </div>
 
@@ -463,95 +460,38 @@ function stars(float $rating): string
 
               <div id="no-event-message" class="text-muted small">Please select an event type to view available add-ons.</div>
 
-              <div class="addon-group-item wedding-addon" data-event="Wedding" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Catering Service"> Catering Service (+₱8,000)</label>
-              </div>
-              <div class="addon-group-item wedding-addon" data-event="Wedding" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Bridal Car"> Bridal Car (+₱3,500)</label>
-              </div>
-              <div class="addon-group-item wedding-addon" data-event="Wedding" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Floral Arrangement Package"> Floral Arrangement Package (+₱2,500)</label>
-              </div>
-              <div class="addon-group-item wedding-addon" data-event="Wedding" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Wedding Stage Decoration"> Wedding Stage Decoration (+₱4,000)</label>
-              </div>
-              <div class="addon-group-item wedding-addon" data-event="Wedding" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Photo Booth"> Photo Booth (+₱2,500)</label>
-              </div>
-
-              <div class="addon-group-item birthday-addon" data-event="Birthday / Debut" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Catering Service"> Catering Service (+₱6,000)</label>
-              </div>
-              <div class="addon-group-item birthday-addon" data-event="Birthday / Debut" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Balloon & Themed Setup"> Balloon & Themed Setup (+₱2,000)</label>
-              </div>
-              <div class="addon-group-item birthday-addon" data-event="Birthday / Debut" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Photo Booth"> Photo Booth (+₱2,500)</label>
-              </div>
-              <div class="addon-group-item birthday-addon" data-event="Birthday / Debut" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Clown / Event Host"> Clown / Event Host (+₱1,500)</label>
-              </div>
-              <div class="addon-group-item birthday-addon" data-event="Birthday / Debut" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Cake Styling Setup"> Cake Styling Setup (+₱1,000)</label>
-              </div>
-
-              <div class="addon-group-item prom-addon" data-event="Prom / Ball" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="DJ Booth"> DJ Booth (+₱3,000)</label>
-              </div>
-              <div class="addon-group-item prom-addon" data-event="Prom / Ball" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="LED Lights Setup"> LED Lights Setup (+₱2,500)</label>
-              </div>
-              <div class="addon-group-item prom-addon" data-event="Prom / Ball" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Red Carpet Entrance Setup"> Red Carpet Entrance Setup (+₱1,500)</label>
-              </div>
-              <div class="addon-group-item prom-addon" data-event="Prom / Ball" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Photo Booth"> Photo Booth (+₱2,500)</label>
-              </div>
-              <div class="addon-group-item prom-addon" data-event="Prom / Ball" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Emcee / Host"> Emcee / Host (+₱2,000)</label>
-              </div>
-
-              <div class="addon-group-item corporate-addon" data-event="Corporate Event" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Projector & Screen Setup"> Projector & Screen Setup (+₱2,000)</label>
-              </div>
-              <div class="addon-group-item corporate-addon" data-event="Corporate Event" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Sound System"> Sound System (+₱3,000)</label>
-              </div>
-              <div class="addon-group-item corporate-addon" data-event="Corporate Event" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Microphones & Stage Setup"> Microphones & Stage Setup (+₱2,500)</label>
-              </div>
-              <div class="addon-group-item corporate-addon" data-event="Corporate Event" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Coffee Break Catering"> Coffee Break Catering (+₱5,000)</label>
-              </div>
-              <div class="addon-group-item corporate-addon" data-event="Corporate Event" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="LED Display Wall"> LED Display Wall (+₱8,000)</label>
-              </div>
-
-              <div class="addon-group-item reunion-addon" data-event="Reunion" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Buffet Catering"> Buffet Catering (+₱7,000)</label>
-              </div>
-              <div class="addon-group-item reunion-addon" data-event="Reunion" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Photo Booth"> Photo Booth (+₱2,500)</label>
-              </div>
-              <div class="addon-group-item reunion-addon" data-event="Reunion" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Memory Slideshow / Projector"> Memory Slideshow / Projector (+₱1,500)</label>
-              </div>
-              <div class="addon-group-item reunion-addon" data-event="Reunion" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Event Host / Emcee"> Event Host / Emcee (+₱2,000)</label>
-              </div>
-
-              <div class="addon-group-item anniversary-addon" data-event="Anniversary" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Romantic Venue Styling"> Romantic Venue Styling (+₱3,000)</label>
-              </div>
-              <div class="addon-group-item anniversary-addon" data-event="Anniversary" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Floral Arrangement Package"> Floral Arrangement Package (+₱2,000)</label>
-              </div>
-              <div class="addon-group-item anniversary-addon" data-event="Anniversary" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Candle & Lights Setup"> Candle & Lights Setup (+₱1,500)</label>
-              </div>
-              <div class="addon-group-item anniversary-addon" data-event="Anniversary" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Live Acoustic Music"> Live Acoustic Music (+₱5,000)</label>
-              </div>
+              <?php if (!empty($addonsByEvent)): ?>
+                <?php foreach ($addonsByEvent as $eventType => $addons): ?>
+                  <?php
+                    // Build a safe CSS class slug from the event type name,
+                    // e.g. "Birthday / Debut" → "birthday-debut-addon"
+                    $slug = strtolower(preg_replace('/[^a-zA-Z0-9]+/', '-', $eventType));
+                    $slug = trim($slug, '-') . '-addon';
+                  ?>
+                  <?php foreach ($addons as $addon): ?>
+                    <div
+                      class="addon-group-item <?php echo htmlspecialchars($slug); ?>"
+                      data-event="<?php echo htmlspecialchars($eventType); ?>"
+                      style="display: none;"
+                    >
+                      <label>
+                        <input
+                          type="checkbox"
+                          name="addons[]"
+                          value="<?php echo htmlspecialchars($addon['id']); ?>"
+                          data-addon-name="<?php echo htmlspecialchars($addon['name']); ?>"
+                          data-addon-price="<?php echo (int) $addon['price']; ?>"
+                        >
+                        <?php echo htmlspecialchars($addon['name']); ?>
+                        (+₱<?php echo number_format($addon['price']); ?>)
+                      </label>
+                    </div>
+                  <?php endforeach; ?>
+                <?php endforeach; ?>
+              <?php else: ?>
+                <?php /* DB returned no add-ons — render nothing so the
+                         "Please select an event type" message stays visible */ ?>
+              <?php endif; ?>
             </div>
 
             <button type="submit" class="btn-enquire">

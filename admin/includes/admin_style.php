@@ -393,7 +393,7 @@ body {
 }
 .icon-btn:hover { background: var(--bg); color: var(--text); }
 
-/* ── Side drawer / modal ────────────────── */
+/* ── Side drawer ────────────────────────── */
 .side-drawer-overlay {
   position: fixed;
   inset: 0;
@@ -413,18 +413,22 @@ body {
   top: 0; right: 0;
   width: 420px;
   max-width: 95vw;
-  height: 100vh;
+  height: 100vh;           /* Full viewport height */
   background: var(--surface);
   border-left: 1px solid var(--border);
   z-index: 400;
   transform: translateX(100%);
   transition: transform .28s cubic-bezier(.4,0,.2,1);
+
+  /* KEY FIX: make the drawer itself a flex column so children
+     can share the fixed height without overflowing */
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: hidden;         /* clip — children handle their own scroll */
 }
 .side-drawer.open { transform: translateX(0); }
 
+/* Header: never shrinks */
 .drawer-header {
   padding: 20px 22px 16px;
   border-bottom: 1px solid var(--border);
@@ -449,10 +453,33 @@ body {
 }
 .drawer-close:hover { background: var(--bg); }
 
+/* KEY FIX: The <form> tag wraps body + footer.
+   It must be a flex column that fills remaining height. */
+.drawer-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;           /* take all space below the header */
+  overflow: hidden;  /* contain children */
+  min-height: 0;     /* allow flex shrink below content size */
+}
+
+/* Body: scrolls when content overflows */
 .drawer-body {
   flex: 1;
   overflow-y: auto;
   padding: 20px 22px;
+  min-height: 0;     /* critical for Firefox + Safari */
+}
+
+/* Footer: pinned at bottom, never scrolls away */
+.drawer-footer {
+  flex-shrink: 0;
+  padding: 16px 22px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--surface); /* ensure it covers scrolled content */
 }
 
 .drawer-section { margin-bottom: 22px; }
@@ -475,15 +502,6 @@ body {
 .info-row:last-child { border-bottom: none; }
 .info-label { font-size: 12.5px; color: var(--muted); font-weight: 500; }
 .info-value { font-size: 13px; font-weight: 500; color: var(--text); text-align: right; }
-
-.drawer-footer {
-  padding: 16px 22px;
-  border-top: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex-shrink: 0;
-}
 
 .btn-full {
   width: 100%;
@@ -670,6 +688,43 @@ body {
 .user-name-block .name { font-weight: 600; font-size: 13.5px; }
 .user-name-block .email { font-size: 11.5px; color: var(--muted); }
 
+/* ── Gallery thumbnail strip ─────────────── */
+.gallery-thumb-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.gallery-thumb-item {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+}
+.gallery-thumb-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.gallery-thumb-remove {
+  position: absolute;
+  top: 2px; right: 2px;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: rgba(0,0,0,.6);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  display: grid; place-items: center;
+  line-height: 1;
+}
+.gallery-thumb-remove:hover { background: var(--danger); }
+
 /* ── Utility ────────────────────────────── */
 .text-muted-sm { font-size: 12px; color: var(--muted); }
 .fw-600 { font-weight: 600; }
@@ -678,4 +733,6 @@ body {
 .align-center { align-items: center; }
 .justify-between { justify-content: space-between; }
 .flex-wrap { flex-wrap: wrap; }
+.mb-3 { margin-bottom: 16px; }
+.mt-1 { margin-top: 4px; }
 </style>
