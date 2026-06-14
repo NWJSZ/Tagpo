@@ -36,12 +36,12 @@ if ($durationHours < 1) $durationHours = 4;
 
 // ── Resolve event_id from event_name ────────────────────────────────────────
 $eventNameMap = [
-    'Wedding'          => 'Wedding',
-    'Birthday / Debut' => 'Birthday',
-    'Prom / Ball'      => 'Prom',
-    'Corporate Event'  => 'Corporate Event',
-    'Reunion'          => 'Gala',
-    'Anniversary'      => 'Gala',
+    'Wedding'            => 'Wedding',
+    'Birthday / Debut'   => 'Birthday / Debut',
+    'Prom / Ball'        => 'Prom / Ball',
+    'Corporate Event'    => 'Corporate Event',
+    'Reunion'            => 'Reunion',
+    'Anniversary'        => 'Anniversary',
 ];
 $dbEventName = $eventNameMap[$eventType] ?? $eventType;
 
@@ -59,8 +59,10 @@ if (!empty($addons)) {
     $placeholders = implode(',', array_fill(0, count($addons), '?'));
     $types = 'i' . str_repeat('s', count($addons));
     $stmt = $conn->prepare(
-        "SELECT addon_id, addon_name, price FROM addons WHERE archived = 0
-         WHERE event_id = ? AND addon_name IN ($placeholders)"
+        "SELECT addon_id, addon_name, price FROM addons 
+         WHERE archived = 0 
+         AND event_id = ? 
+         AND addon_name IN ($placeholders)"
     );
     $stmt->bind_param($types, $eventId, ...$addons);
     $stmt->execute();
