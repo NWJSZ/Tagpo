@@ -1,0 +1,204 @@
+
+<style>
+  .module-card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1rem 1.25rem; margin-bottom: 12px; }
+  .module-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; cursor: pointer; user-select: none; }
+  .module-title { font-size: 15px; font-weight: 500; color: var(--color-text-primary); flex: 1; }
+  .badge { font-size: 11px; padding: 3px 10px; border-radius: 99px; font-weight: 500; }
+  .badge-pending { background: var(--color-background-tertiary); color: var(--color-text-secondary); }
+  .badge-pass { background: var(--color-background-success); color: var(--color-text-success); }
+  .badge-fail { background: var(--color-background-danger); color: var(--color-text-danger); }
+  .badge-warn { background: var(--color-background-warning); color: var(--color-text-warning); }
+  .badge-running { background: var(--color-background-info); color: var(--color-text-info); }
+  .test-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 13px; }
+  .test-row:last-child { border-bottom: none; }
+  .test-label { flex: 1; color: var(--color-text-primary); }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot-pending { background: var(--color-border-secondary); }
+  .dot-pass { background: #27a06a; }
+  .dot-fail { background: #e24b4a; }
+  .dot-warn { background: #ef9f27; }
+  .status-btn { font-size: 11px; padding: 2px 8px; border-radius: 99px; cursor: pointer; border: 0.5px solid var(--color-border-secondary); background: transparent; color: var(--color-text-secondary); transition: all .15s; }
+  .status-btn:hover { background: var(--color-background-secondary); }
+  .progress-bar { height: 4px; border-radius: 2px; background: var(--color-border-tertiary); margin: 10px 0 0; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 2px; background: #27a06a; transition: width .3s; }
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }
+  .stat-card { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: .75rem 1rem; text-align: center; }
+  .stat-num { font-size: 22px; font-weight: 500; color: var(--color-text-primary); }
+  .stat-lbl { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
+  .report-btn { font-size: 12px; padding: 4px 12px; margin-left: 4px; border-radius: 99px; border: 0.5px solid var(--color-border-secondary); background: transparent; color: var(--color-text-info); cursor: pointer; }
+  .report-btn:hover { background: var(--color-background-info); }
+  .icon { font-size: 16px; color: var(--color-text-secondary); }
+  .module-toggle { font-size: 12px; color: var(--color-text-secondary); transition: transform .2s; }
+  .module-toggle.open { transform: rotate(180deg); }
+  .tests-body { }
+  .section-label { font-size: 11px; font-weight: 500; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: .04em; margin: 8px 0 4px; }
+</style>
+
+<h2 class="sr-only">Tagpo QA Testing Dashboard — track test results across all modules</h2>
+
+<div style="padding: 1rem 0">
+  <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:16px;">
+    <span style="font-size:18px;font-weight:500;color:var(--color-text-primary)">Tagpo QA Dashboard</span>
+    <span id="session-time" style="font-size:12px;color:var(--color-text-secondary)"></span>
+  </div>
+
+  <div class="summary-grid">
+    <div class="stat-card"><div class="stat-num" id="s-total">0</div><div class="stat-lbl">Total tests</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:#27a06a" id="s-pass">0</div><div class="stat-lbl">Passed</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:#e24b4a" id="s-fail">0</div><div class="stat-lbl">Failed</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:#ef9f27" id="s-warn">0</div><div class="stat-lbl">Warnings</div></div>
+  </div>
+
+  <div id="modules-container"></div>
+</div>
+
+<script>
+const modules = [
+  {
+    id: 'users', icon: 'ti-users', label: 'Users Module',
+    tests: [
+      { id:'u1', label:'All users listed in admin panel' },
+      { id:'u2', label:'UI data matches DB records exactly' },
+      { id:'u3', label:'User booking history loads correctly' },
+      { id:'u4', label:'No undefined index notices on user profile' },
+      { id:'u5', label:'Special chars in names handled (e.g. O\'Brien)' },
+    ]
+  },
+  {
+    id: 'bookings', icon: 'ti-calendar', label: 'Bookings Module',
+    tests: [
+      { id:'b1', label:'End-to-end booking creation completes' },
+      { id:'b2', label:'New booking appears in admin dashboard' },
+      { id:'b3', label:'User, Venue, Event fields saved correctly' },
+      { id:'b4', label:'Date, Guests, Total Price saved correctly' },
+      { id:'b5', label:'Booking detail modal/accordion opens without truncation' },
+      { id:'b6', label:'Duplicate booking prevention works' },
+    ]
+  },
+  {
+    id: 'venues', icon: 'ti-building', label: 'Venues Module',
+    tests: [
+      { id:'v1', label:'Add venue — all fields save to DB' },
+      { id:'v2', label:'Edit venue — changes reflect in UI and DB' },
+      { id:'v3', label:'Image upload path stored correctly' },
+      { id:'v4', label:'Highlights & Amenities fields save correctly' },
+      { id:'v5', label:'Capacity and Price fields validated' },
+      { id:'v6', label:'Event association reflects on venue.php' },
+    ]
+  },
+  {
+    id: 'events', icon: 'ti-star', label: 'Events & Add-ons Module',
+    tests: [
+      { id:'e1', label:'Add event — data saved to DB' },
+      { id:'e2', label:'Edit event — syncs on manage-events page' },
+      { id:'e3', label:'Delete event — removed across all pages' },
+      { id:'e4', label:'Event visible on manage-venues page' },
+      { id:'e5', label:'Event visible on venue.php' },
+      { id:'e6', label:'Add-on created and linked correctly' },
+      { id:'e7', label:'Add-on appears in booking flow' },
+    ]
+  },
+  {
+    id: 'payments', icon: 'ti-credit-card', label: 'Payments & Status Sync',
+    tests: [
+      { id:'p1', label:'Card payment → status auto-set to Paid' },
+      { id:'p2', label:'GCash payment → initial status is Pending' },
+      { id:'p3', label:'Admin approves pending → status becomes Paid' },
+      { id:'p4', label:'Admin rejects pending → status becomes Failed' },
+      { id:'p5', label:'Paid status changed to Refunded correctly' },
+      { id:'p6', label:'manage-payments and manage-bookings stay in sync' },
+      { id:'p7', label:'No orphan payment records on booking cancel' },
+    ]
+  }
+];
+
+const state = {};
+modules.forEach(m => m.tests.forEach(t => state[t.id] = 'pending'));
+
+function getStatus(id) { return state[id]; }
+function cycleStatus(id) {
+  const cycle = { pending: 'pass', pass: 'fail', fail: 'warn', warn: 'pending' };
+  state[id] = cycle[state[id]];
+  render();
+}
+
+function dotClass(s) { return 'dot-'+s; }
+function badgeLabel(s) { return { pending:'Pending', pass:'Pass', fail:'Fail', warn:'Warning' }[s]; }
+function badgeClass(s) { return 'badge badge-'+(s==='pass'?'pass':s==='fail'?'fail':s==='warn'?'warn':'pending'); }
+
+function updateSummary() {
+  const all = Object.values(state);
+  document.getElementById('s-total').textContent = all.length;
+  document.getElementById('s-pass').textContent = all.filter(s=>s==='pass').length;
+  document.getElementById('s-fail').textContent = all.filter(s=>s==='fail').length;
+  document.getElementById('s-warn').textContent = all.filter(s=>s==='warn').length;
+}
+
+function render() {
+  updateSummary();
+  const container = document.getElementById('modules-container');
+  container.innerHTML = '';
+  modules.forEach(m => {
+    const tests = m.tests;
+    const passed = tests.filter(t => state[t.id]==='pass').length;
+    const failed = tests.filter(t => state[t.id]==='fail').length;
+    const warned = tests.filter(t => state[t.id]==='warn').length;
+    const pct = Math.round((passed / tests.length) * 100);
+    const overallBadge = failed > 0 ? 'fail' : warned > 0 ? 'warn' : passed === tests.length ? 'pass' : 'pending';
+
+    const card = document.createElement('div');
+    card.className = 'module-card';
+    card.innerHTML = `
+      <div class="module-header" onclick="toggleModule('${m.id}')">
+        <i class="ti ${m.icon} icon" aria-hidden="true"></i>
+        <span class="module-title">${m.label}</span>
+        <span style="font-size:12px;color:var(--color-text-secondary)">${passed}/${tests.length}</span>
+        <span class="${badgeClass(overallBadge)}">${badgeLabel(overallBadge)}</span>
+        <i class="ti ti-chevron-down module-toggle ${document.getElementById('body-'+m.id)?.classList.contains('open') ? 'open' : ''}" id="toggle-icon-${m.id}" aria-hidden="true"></i>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <div class="tests-body" id="body-${m.id}" style="display:none;margin-top:10px">
+        ${tests.map(t => `
+          <div class="test-row">
+            <span class="status-dot ${dotClass(state[t.id])}"></span>
+            <span class="test-label">${t.label}</span>
+            <button class="status-btn" onclick="event.stopPropagation();cycleStatus('${t.id}')">${badgeLabel(state[t.id])}</button>
+            <button class="report-btn" onclick="event.stopPropagation();reportTest('${t.id}','${t.label}')">Report ↗</button>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    container.appendChild(card);
+    const prevOpen = localStorage && localStorage.getItem('tagpo-open-'+m.id);
+    if (prevOpen === 'true') {
+      const body = card.querySelector('#body-'+m.id);
+      const icon = card.querySelector('#toggle-icon-'+m.id);
+      if (body) body.style.display = 'block';
+      if (icon) icon.classList.add('open');
+    }
+  });
+}
+
+function toggleModule(id) {
+  const body = document.getElementById('body-'+id);
+  const icon = document.getElementById('toggle-icon-'+id);
+  if (!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  icon.classList.toggle('open', !isOpen);
+  if (localStorage) localStorage.setItem('tagpo-open-'+id, !isOpen);
+}
+
+function reportTest(id, label) {
+  sendPrompt('Reporting test failure for: ' + label + ' (Test ID: ' + id + '). Please provide debugging steps and the SQL query to investigate this issue.');
+}
+
+function setTime() {
+  const now = new Date();
+  document.getElementById('session-time').textContent = 'Session: ' + now.toLocaleTimeString();
+}
+
+render();
+setTime();
+setInterval(setTime, 1000);
+</script>

@@ -25,7 +25,10 @@ CREATE TABLE users (
 
 CREATE TABLE event (
     event_id INT AUTO_INCREMENT PRIMARY KEY,
-    event_name VARCHAR(100) NOT NULL UNIQUE
+    event_name VARCHAR(100) NOT NULL UNIQUE,
+    archived TINYINT(1) DEFAULT 0,
+    
+    INDEX idx_event_archived (archived)
 );
 
 -- =====================================================
@@ -39,12 +42,14 @@ CREATE TABLE venues (
     capacity INT NOT NULL,
     price DECIMAL(10,2) NOT NULL,
     description TEXT,
-    image_url VARCHAR(255)
+    image_url VARCHAR(255),
+    archived TINYINT(1) DEFAULT 0,
+    
+    INDEX idx_venues_archived (archived)
 );
 
 -- =====================================================
 -- VENUE EVENTS (JUNCTION TABLE FOR MANY-TO-MANY)
--- FIX: Dito mase-save kung anong mga events ang pwede sa bawat venue.
 -- =====================================================
 
 CREATE TABLE venue_events (
@@ -120,11 +125,14 @@ CREATE TABLE addons (
     event_id INT NOT NULL,
     addon_name VARCHAR(100) NOT NULL,
     price DECIMAL(10,2) NOT NULL,
+    archived TINYINT(1) DEFAULT 0,
 
     FOREIGN KEY (event_id)
         REFERENCES event(event_id)
         ON DELETE CASCADE
-        ON UPDATE CASCADE
+        ON UPDATE CASCADE,
+        
+    INDEX idx_addons_archived (archived)
 );
 
 -- =====================================================
