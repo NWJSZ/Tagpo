@@ -186,11 +186,11 @@ function stars(float $rating): string
     </div>
 
     <div class="tab-bar">
-      <div class="tab active" onclick="setTab(this)">Photos</div>
-      <div class="tab" onclick="scrollToSection('about')">About</div>
-      <div class="tab" onclick="scrollToSection('capacity')">Capacity</div>
-      <div class="tab" onclick="scrollToSection('amenities')">Information</div>
-      <div class="tab" onclick="scrollToSection('reviews')">Reviews</div>
+      <div class="tab active" onclick="setTab(this); scrollToSection('')">Photos</div>
+      <div class="tab" onclick="setTab(this); scrollToSection('about')">About</div>
+      <div class="tab" onclick="setTab(this); scrollToSection('capacity')">Capacity</div>
+      <div class="tab" onclick="setTab(this); scrollToSection('amenities')">Information</div>
+      <div class="tab" onclick="setTab(this); scrollToSection('reviews')">Reviews</div>
     </div>
 
     <div class="gallery-grid">
@@ -620,7 +620,9 @@ function stars(float $rating): string
       } else {
         const el = document.getElementById(id);
         if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          const yOffset = -140; 
+          const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
+          window.scrollTo({ top: y, behavior: 'smooth' });
         }
       }
     }
