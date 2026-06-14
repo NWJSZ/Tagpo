@@ -26,6 +26,11 @@ $currentPage = $currentPage ?? '';
       </a>
     </li>
     <li>
+      <a href="booking_dashboard.php" class="sidebar-link <?= $currentPage==='reports' ? 'active' : '' ?>">
+        <i class="bi bi-file-earmark-bar-graph"></i><span>Crystal Report</span>
+      </a>
+    </li>
+    <li>
       <a href="manage-users.php" class="sidebar-link <?= $currentPage==='users' ? 'active' : '' ?>">
         <i class="bi bi-people"></i><span>Users</span>
       </a>
@@ -33,6 +38,11 @@ $currentPage = $currentPage ?? '';
     <li>
       <a href="manage-venues.php" class="sidebar-link <?= $currentPage==='venues' ? 'active' : '' ?>">
         <i class="bi bi-building"></i><span>Venues</span>
+      </a>
+    </li>
+    <li>
+      <a href="manage-events.php" class="sidebar-link <?= $currentPage==='events' ? 'active' : '' ?>">
+        <i class="bi bi-tags"></i><span>Events & Add-ons</span>
       </a>
     </li>
     <li>

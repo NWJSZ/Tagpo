@@ -18,7 +18,7 @@ $currentPage = 'users';
 /* ── Search ──────────────────────────────────────────────── */
 $search = trim($_GET['q'] ?? '');
 
-$sql = "SELECT id, first_name, last_name, email, phone, role FROM users WHERE role = 'user'";
+$sql = "SELECT id, first_name, last_name, email, phone, role FROM users WHERE 1=1"; 
 $params = [];
 $types  = '';
 if ($search !== '') {
@@ -38,12 +38,13 @@ $users = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 
 /* ── Stats ───────────────────────────────────────────────── */
-$totalUsers   = (int) ($conn->query("SELECT COUNT(*) AS c FROM users WHERE role='user'")->fetch_assoc()['c'] ?? 0);
+// Binago natin para mabilang ang 0 o 'user' depende sa database structure mo
+$totalUsers   = (int) ($conn->query("SELECT COUNT(*) AS c FROM users WHERE role='user' OR role='0'")->fetch_assoc()['c'] ?? 0);
 $activeUsers  = (int) ($conn->query("
     SELECT COUNT(DISTINCT user_id) AS c FROM bookings
     WHERE event_date >= CURDATE() - INTERVAL 30 DAY
 ")->fetch_assoc()['c'] ?? 0);
-$newThisWeek  = $totalUsers > 0 ? max(0, min($totalUsers, 1)) : 0; // users table has no created_at column
+$newThisWeek  = $totalUsers > 0 ? max(0, min($totalUsers, 1)) : 0;
 
 /* ── Per-user booking history (for side drawer) ─────────────── */
 $userIds = array_column($users, 'id');
@@ -92,6 +93,27 @@ function statusBadgeClass(string $status): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Users | Tagpo Admin</title>
   <?php include 'includes/admin_style.php'; ?>
+  
+  <style>
+    .badge-role {
+      display: inline-block;
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 50px; /* Hugis Capsule */
+      text-align: center;
+    }
+    .badge-admin-red {
+      background-color: #fde8e8;
+      color: #e02424;
+      border: 1px solid #f8b4b4;
+    }
+    .badge-user-green {
+      background-color: #def7ec;
+      color: #03543f;
+      border: 1px solid #84e1bc;
+    }
+  </style>
 </head>
 <body>
 
@@ -114,7 +136,6 @@ function statusBadgeClass(string $status): string {
       <p>Manage all registered Tagpo members and track their booking activity.</p>
     </div>
 
-    <!-- Stat cards -->
     <div class="row g-3 mb-4">
       <div class="col-md-4">
         <div class="stat-card">
@@ -148,7 +169,6 @@ function statusBadgeClass(string $status): string {
       </div>
     </div>
 
-    <!-- Table -->
     <div class="panel-card">
       <div class="panel-card-header">
         <h2>All Users</h2>
@@ -170,7 +190,7 @@ function statusBadgeClass(string $status): string {
               <th>Full Name</th>
               <th>Email</th>
               <th>Phone Number</th>
-              <th>Bookings</th>
+              <th>Role</th> <th>Bookings</th>
               <th></th>
             </tr>
           </thead>
@@ -180,6 +200,15 @@ function statusBadgeClass(string $status): string {
               $initial  = strtoupper(substr($u['first_name'], 0, 1));
               $history  = $historyByUser[$u['id']] ?? [];
               $bookingsCount = $bookingCountByUser[$u['id']] ?? 0;
+
+              // Dito natin kino-convert ang 1 o 0 para maging Text at Capsule badge
+              if ($u['role'] == '1' || strtolower($u['role']) === 'admin') {
+                  $roleText = 'Admin';
+                  $roleClass = 'badge-admin-red';
+              } else {
+                  $roleText = 'User';
+                  $roleClass = 'badge-user-green';
+              }
 
               $historyHtml = '';
               if (empty($history)) {
@@ -202,6 +231,7 @@ function statusBadgeClass(string $status): string {
                   data-initial="<?= htmlspecialchars($initial, ENT_QUOTES) ?>"
                   data-email="<?= htmlspecialchars($u['email'], ENT_QUOTES) ?>"
                   data-phone="<?= htmlspecialchars($u['phone'] ?: 'Not provided', ENT_QUOTES) ?>"
+                  data-role="<?= htmlspecialchars($roleText, ENT_QUOTES) ?>"
                   data-bookings="<?= $bookingsCount ?>"
                   data-history="<?= htmlspecialchars($historyHtml, ENT_QUOTES) ?>">
                 <td class="text-muted-sm">#<?= (int)$u['id'] ?></td>
@@ -215,6 +245,13 @@ function statusBadgeClass(string $status): string {
                 </td>
                 <td><?= htmlspecialchars($u['email']) ?></td>
                 <td><?= htmlspecialchars($u['phone'] ?: 'Not provided') ?></td>
+                
+                <td>
+                  <span class="badge-role <?= $roleClass ?>">
+                    <?= $roleText ?>
+                  </span>
+                </td>
+
                 <td><?= $bookingsCount ?></td>
                 <td><i class="bi bi-chevron-right text-muted-sm"></i></td>
               </tr>
@@ -231,7 +268,6 @@ function statusBadgeClass(string $status): string {
   </div>
 </div>
 
-<!-- Side Drawer -->
 <div class="side-drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
 <div class="side-drawer" id="userDrawer">
   <div class="drawer-header">
@@ -239,8 +275,7 @@ function statusBadgeClass(string $status): string {
       <div class="user-avatar" id="drawerInitial" style="width:44px;height:44px;font-size:16px;"></div>
       <div>
         <h3 id="drawerName"></h3>
-        <p>Standard Member</p>
-      </div>
+        <p id="drawerRoleText">Standard Member</p> </div>
     </div>
     <button class="drawer-close" onclick="closeDrawer()"><i class="bi bi-x-lg"></i></button>
   </div>
@@ -250,7 +285,7 @@ function statusBadgeClass(string $status): string {
       <div class="info-row"><div class="info-label">User ID</div><div class="info-value" id="drawerId"></div></div>
       <div class="info-row"><div class="info-label">Email</div><div class="info-value" id="drawerEmail"></div></div>
       <div class="info-row"><div class="info-label">Phone</div><div class="info-value" id="drawerPhone"></div></div>
-      <div class="info-row"><div class="info-label">Total Bookings</div><div class="info-value" id="drawerBookings"></div></div>
+      <div class="info-row"><div class="info-label">Role</div><div class="info-value" id="drawerRole"></div></div> <div class="info-row"><div class="info-label">Total Bookings</div><div class="info-value" id="drawerBookings"></div></div>
     </div>
     <div class="drawer-section">
       <div class="drawer-section-title">Booking History</div>
@@ -266,6 +301,8 @@ function openDrawer(row) {
   document.getElementById('drawerId').textContent       = '#' + row.dataset.id;
   document.getElementById('drawerEmail').textContent    = row.dataset.email;
   document.getElementById('drawerPhone').textContent    = row.dataset.phone;
+  document.getElementById('drawerRole').textContent     = row.dataset.role;
+  document.getElementById('drawerRoleText').textContent = row.dataset.role + " Member";
   document.getElementById('drawerBookings').textContent = row.dataset.bookings;
   document.getElementById('drawerHistory').innerHTML    = row.dataset.history;
 
