@@ -21,6 +21,7 @@ if (!isLoggedIn()) {
 $venueNamesArray = [];
 $venuePrice      = 0;
 $eventType       = '';
+$eventName       = '';
 $eventDate       = '';
 $eventTime       = '';
 $duration        = '';
@@ -41,6 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['pay_now'])) {
         $venueNamesArray[]    = $item['venue_name'];
         $venuePrice          += (float) ($item['venue_price'] ?? 0);
         if (empty($eventType))  $eventType  = $item['event_id'] ?? '';
+        if (empty($eventName))  $eventName  = $item['event_type'] ?? '';
         if (empty($eventDate))  $eventDate  = $item['event_date'] ?? '';
         if (empty($eventTime))  $eventTime  = $item['event_time'] ?? '';
         if (empty($duration))   $duration   = $item['duration']   ?? '';
@@ -58,6 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['pay_now'])) {
     $venueName  = $_GET['venue_name'] ?? $_POST['venue_name'] ?? '';
     $venuePrice = (float) ($_GET['venue_price'] ?? $_POST['venue_price'] ?? 0);
     $eventType  = $_GET['event_id']  ?? $_POST['event_id']  ?? '';
+    $eventName  = $_GET['event_name'] ?? $_POST['form_event_name'] ?? '';
     $eventDate  = $_GET['date']        ?? $_POST['event_date']  ?? '';
     $eventTime  = $_GET['time']        ?? $_POST['event_time']  ?? '';
     $duration   = $_GET['duration']    ?? $_POST['duration']    ?? '';
@@ -98,6 +101,21 @@ $customerName = '';
 $user = getCurrentUser();
 if ($user) {
     $customerName = trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''));
+}
+
+if (empty($eventName) && !empty($eventType) && ctype_digit(strval($eventType))) {
+    $stmt = $conn->prepare("SELECT event_name FROM event WHERE event_id = ? LIMIT 1");
+    $stmt->bind_param('i', $eventType);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    if ($row) {
+        $eventName = $row['event_name'];
+    }
+}
+
+if (empty($eventName)) {
+    $eventName = $eventType;
 }
 
 $methodMsg   = '';
@@ -154,13 +172,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
 
         if (strlen($cardRaw) !== 16) die('Card number must be 16 digits.');
         if (!preg_match('/^(0[1-9]|1[0-2])\/\d{2}$/', $expiry)) die('Invalid expiry format (MM/YY).');
+
+        [$monthStr, $yearStr] = explode('/', $expiry);
+        $cardExpiryMonth = (int) $monthStr;
+        $cardExpiryYear  = (int) ('20' . $yearStr);
+        $currentYear = (int) date('Y');
+        $currentMonth = (int) date('n');
+        if ($cardExpiryYear < $currentYear || ($cardExpiryYear === $currentYear && $cardExpiryMonth < $currentMonth)) {
+            die('Expired card. Please use a current or future expiry date.');
+        }
+
         if (strlen($cvv) !== 3) die('CVV must be 3 digits.');
 
         $cardHolderName  = trim($firstName . ' ' . $lastName);
         $cardLastFour    = substr($cardRaw, -4);
-        [$monthStr, $yearStr] = explode('/', $expiry);
-        $cardExpiryMonth = (int) $monthStr;
-        $cardExpiryYear  = (int) ('20' . $yearStr);
 
     } elseif ($method === 'gcash') {
         $gcashAccountName = trim($_POST['gcash_name']   ?? '');
@@ -335,6 +360,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
         'venue_name'     => $venueName ?: $_POST['form_venue_name'] ?? '',
         'venue_price'    => $venuePrice,
         'event_id'       => $eventType  ?: $_POST['form_event_id'] ?? '',
+        'event_name'     => $eventName  ?: $_POST['form_event_name'] ?? '',
         'event_date'     => $eventDate  ?: $_POST['form_event_date'] ?? '',
         'event_time'     => $eventTime  ?: $_POST['form_event_time'] ?? '',
         'duration'       => $duration   ?: $_POST['form_duration']   ?? '',
@@ -371,7 +397,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <link rel="stylesheet" href="assets/css/styles.css"/>
-  <style>.payment-section{transition:all .2s ease-in-out;}</style>
+  <style>
+    .payment-section{transition:all .2s ease-in-out;}
+    .input-invalid {
+      border-color: #dc3545 !important;
+      box-shadow: 0 0 0 0.15rem rgba(220, 53, 69, 0.25);
+    }
+    .invalid-feedback-inline {
+      display: none;
+      color: #dc3545;
+      font-size: 0.9rem;
+      margin-top: 0.35rem;
+    }
+    .invalid-feedback-inline.active {
+      display: block;
+    }
+  </style>
 </head>
 <body>
 
@@ -399,7 +440,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
         <div class="p-3 mb-4" style="background:#f8f9fa;border-left:5px solid #0d6efd;border-radius:5px;">
           <h5 class="fw-bold"><?= htmlspecialchars($venueName) ?></h5>
           <p class="mb-1 text-muted small">Customer: <?= htmlspecialchars($customerName) ?></p>
-          <p class="mb-1 text-muted small">Event: <?= htmlspecialchars($eventType) ?></p>
+          <p class="mb-1 text-muted small">Event: <?= htmlspecialchars($eventName) ?></p>
           <p class="mb-1 text-muted small">Date: <?= htmlspecialchars($eventDate) ?> at <?= htmlspecialchars($eventTime) ?> (<?= htmlspecialchars($duration) ?>)</p>
           <p class="mb-0 text-muted small">Guests: <?= (int)$guestCount ?> pax</p>
         </div>
@@ -440,7 +481,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
 
           <!-- Carry booking details for receipt -->
           <input type="hidden" name="form_venue_name"  value="<?= htmlspecialchars($venueName) ?>">
-          <input type="hidden" name="form_event_id"  value="<?= htmlspecialchars($eventType) ?>">
+          <input type="hidden" name="form_event_id"    value="<?= htmlspecialchars($eventType) ?>">
+          <input type="hidden" name="form_event_name"  value="<?= htmlspecialchars($eventName) ?>">
           <input type="hidden" name="form_event_date"  value="<?= htmlspecialchars($eventDate) ?>">
           <input type="hidden" name="form_event_time"  value="<?= htmlspecialchars($eventTime) ?>">
           <input type="hidden" name="form_duration"    value="<?= htmlspecialchars($duration) ?>">
@@ -501,6 +543,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
                 <label class="form-label">Expiry Date</label>
                 <input type="text" name="expiry" id="expiry" class="form-control"
                        placeholder="MM/YY" maxlength="5">
+                <div id="expiry_feedback" class="invalid-feedback-inline">Expired card. Please use a current or future expiry date.</div>
               </div>
               <div class="col-6 mb-3">
                 <label class="form-label">CVV</label>
@@ -562,6 +605,19 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   const expiryInput = document.getElementById('expiry');
+  const expiryFeedback = document.getElementById('expiry_feedback');
+  function setExpiryInvalid(message) {
+    if (!expiryInput || !expiryFeedback) return;
+    expiryInput.classList.add('input-invalid');
+    expiryFeedback.textContent = message;
+    expiryFeedback.classList.add('active');
+  }
+  function clearExpiryInvalid() {
+    if (!expiryInput || !expiryFeedback) return;
+    expiryInput.classList.remove('input-invalid');
+    expiryFeedback.classList.remove('active');
+  }
+
   if (expiryInput) {
     expiryInput.addEventListener('input', function () {
       let v = this.value.replace(/\D/g,'');
@@ -570,6 +626,21 @@ document.addEventListener('DOMContentLoaded', function () {
         this.value = String(m).padStart(2,'0') + (v.length > 2 ? '/' + v.slice(2,4) : '');
       } else {
         this.value = v;
+      }
+
+      if (this.value.match(/^(0[1-9]|1[0-2])\/\d{2}$/)) {
+        const [month, year] = this.value.split('/').map(Number);
+        const expiryYear = 2000 + year;
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth() + 1;
+        if (expiryYear < currentYear || (expiryYear === currentYear && month < currentMonth)) {
+          setExpiryInvalid('Expired card. Please use a current or future expiry date.');
+        } else {
+          clearExpiryInvalid();
+        }
+      } else {
+        clearExpiryInvalid();
       }
     });
   }
@@ -601,6 +672,17 @@ document.addEventListener('DOMContentLoaded', function () {
     if (method === 'card') {
       if (cardInput.value.replace(/\D/g,'').length !== 16) { e.preventDefault(); alert('Card number must be 16 digits.'); return; }
       if (!expiryInput.value.match(/^(0[1-9]|1[0-2])\/\d{2}$/)) { e.preventDefault(); alert('Invalid expiry date (MM/YY).'); return; }
+      const [month, year] = expiryInput.value.split('/').map(Number);
+      const expiryYear = 2000 + year;
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1;
+      if (expiryYear < currentYear || (expiryYear === currentYear && month < currentMonth)) {
+        e.preventDefault();
+        setExpiryInvalid('Expired card. Please use a current or future expiry date.');
+        expiryInput.focus();
+        return;
+      }
       if (cvvInput.value.length !== 3) { e.preventDefault(); alert('CVV must be 3 digits.'); return; }
     }
     if (method === 'gcash') {

@@ -124,7 +124,7 @@ $issuedAt = date('F j, Y \a\t g:i A', $receipt['timestamp']);
           <h6 class="text-uppercase text-secondary">Event Details</h6>
           <div class="row">
             <div class="col-sm-6 mb-2"><strong>Venue:</strong> <?= htmlspecialchars($receipt['venue_name']); ?></div>
-            <div class="col-sm-6 mb-2"><strong>Event Type:</strong> <?= htmlspecialchars($receipt['event_id']); ?></div>
+            <div class="col-sm-6 mb-2"><strong>Event Type:</strong> <?= htmlspecialchars($receipt['event_name'] ?? $receipt['event_id'] ?? ''); ?></div>
             <div class="col-sm-6 mb-2"><strong>Date:</strong> <?= htmlspecialchars($receipt['event_date']); ?></div>
             <div class="col-sm-6 mb-2"><strong>Time:</strong> <?= htmlspecialchars($receipt['event_time']); ?></div>
             <div class="col-sm-6 mb-2"><strong>Duration:</strong> <?= htmlspecialchars($receipt['duration']); ?></div>

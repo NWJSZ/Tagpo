@@ -18,6 +18,7 @@ $query = http_build_query([
     'venue_name' => $item['venue_name'] ?? '',
     'venue_price' => $item['venue_price'] ?? 0,
     'event_id' => $item['event_id'] ?? '',
+    'event_name' => $item['event_type'] ?? '',
     'date' => $item['event_date'] ?? '',
     'time' => $item['event_time'] ?? '',
     'duration' => $item['duration'] ?? '',
