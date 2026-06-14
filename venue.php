@@ -35,7 +35,6 @@ foreach ($venues as $v) {
 if ($selected) {
   $venueId = (int) $selected['id'];
   
-  // ITINAMA NA QUERY: Gagamit ng first_name at last_name mula sa users table niyo
   $reviewsQuery = $conn->prepare(
     "SELECT r.review_id, r.rating, r.review_text, r.review_date, u.first_name, u.last_name 
      FROM reviews r 
