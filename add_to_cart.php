@@ -45,7 +45,7 @@ $eventNameMap = [
 ];
 $dbEventName = $eventNameMap[$eventType] ?? $eventType;
 
-$stmt = $conn->prepare("SELECT event_id FROM event WHERE event_name = ? LIMIT 1");
+$stmt = $conn->prepare("SELECT event_id FROM event WHERE event_name = ? AND archived = 0 LIMIT 1");
 $stmt->bind_param('s', $dbEventName);
 $stmt->execute();
 $eventRow = $stmt->get_result()->fetch_assoc();
@@ -59,7 +59,7 @@ if (!empty($addons)) {
     $placeholders = implode(',', array_fill(0, count($addons), '?'));
     $types = 'i' . str_repeat('s', count($addons));
     $stmt = $conn->prepare(
-        "SELECT addon_id, addon_name, price FROM addons
+        "SELECT addon_id, addon_name, price FROM addons WHERE archived = 0
          WHERE event_id = ? AND addon_name IN ($placeholders)"
     );
     $stmt->bind_param($types, $eventId, ...$addons);

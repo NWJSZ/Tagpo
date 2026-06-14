@@ -63,24 +63,26 @@ function safeDeleteImage(?string $relPath): void {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $formAction = $_POST['form_action'] ?? '';
 
-    /* ── DELETE ── */
+    /* ── DELETE (Soft Delete - Archive) ── */
     if ($formAction === 'delete') {
         $id = (int)($_POST['id'] ?? 0);
 
-        // Delete uploaded gallery images from disk
-        $gallRows = $conn->query("SELECT image_url FROM venue_gallery WHERE venue_id = $id")
-                         ->fetch_all(MYSQLI_ASSOC);
-        foreach ($gallRows as $gr) safeDeleteImage($gr['image_url']);
-
-        // Delete cover image from disk
-        $row = $conn->query("SELECT image_url FROM venues WHERE id = $id")->fetch_assoc();
-        if ($row) safeDeleteImage($row['image_url']);
-
-        $stmt = $conn->prepare("DELETE FROM venues WHERE id = ?");
+        // Archive the venue instead of hard delete
+        $stmt = $conn->prepare("UPDATE venues SET archived = 1 WHERE id = ?");
         $stmt->bind_param('i', $id);
         $stmt->execute();
         $stmt->close();
-        $flash = 'Venue deleted successfully.';
+        $flash = 'Venue archived successfully.';
+    }
+
+    /* ── RESTORE (Unarchive) ── */
+    if ($formAction === 'restore') {
+      $id = (int)($_POST['id'] ?? 0);
+      $stmt = $conn->prepare("UPDATE venues SET archived = 0 WHERE id = ?");
+      $stmt->bind_param('i', $id);
+      $stmt->execute();
+      $stmt->close();
+      $flash = 'Venue restored successfully.';
     }
 
     /* ── SAVE (Add or Edit) ── */
@@ -223,7 +225,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 /* ── Fetch venues + amenities + gallery + booking counts ─────────── */
-$venues = $conn->query("SELECT * FROM venues ORDER BY id DESC")->fetch_all(MYSQLI_ASSOC);
+$showArchived = isset($_GET['show_archived']) && $_GET['show_archived'] === '1';
+$archivedFilter = $showArchived ? '1' : '0';
+$venues = $conn->query("SELECT * FROM venues WHERE archived = $archivedFilter ORDER BY id DESC")->fetch_all(MYSQLI_ASSOC);
 
 $venueIds = array_column($venues, 'id');
 $amenitiesByVenue     = [];
@@ -301,9 +305,16 @@ $avgPrice      = $totalVenues > 0 ? array_sum(array_column($venues, 'price')) / 
         <h1>Venues</h1>
         <p>Add, edit, or remove venues available for booking.</p>
       </div>
-      <button class="btn-action btn-primary-green" onclick="openVenueDrawer()">
-        <i class="bi bi-plus-lg"></i> Add Venue
-      </button>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn-action btn-primary-green" onclick="openVenueDrawer()">
+          <i class="bi bi-plus-lg"></i> Add Venue
+        </button>
+        <?php if (!empty($showArchived)): ?>
+          <a class="btn-action btn-outline-gray" href="manage-venues.php">Show Active</a>
+        <?php else: ?>
+          <a class="btn-action btn-outline-gray" href="manage-venues.php?show_archived=1">Show Archived</a>
+        <?php endif; ?>
+      </div>
     </div>
 
     <?php if ($flash): ?>
@@ -405,11 +416,19 @@ $avgPrice      = $totalVenues > 0 ? array_sum(array_column($venues, 'price')) / 
                       <i class="bi bi-pencil"></i>
                     </button>
 
-                    <form method="post" onsubmit="return confirm('Delete this venue? This cannot be undone.');" style="display:inline;">
-                      <input type="hidden" name="form_action" value="delete">
-                      <input type="hidden" name="id" value="<?= (int)$v['id'] ?>">
-                      <button type="submit" class="icon-btn" title="Delete"><i class="bi bi-trash"></i></button>
-                    </form>
+                    <?php if (!empty($showArchived)): ?>
+                      <form method="post" onsubmit="return confirm('Restore this venue?');" style="display:inline;">
+                        <input type="hidden" name="form_action" value="restore">
+                        <input type="hidden" name="id" value="<?= (int)$v['id'] ?>">
+                        <button type="submit" class="icon-btn" title="Restore"><i class="bi bi-arrow-counterclockwise"></i></button>
+                      </form>
+                    <?php else: ?>
+                      <form method="post" onsubmit="return confirm('Archive this venue?');" style="display:inline;">
+                        <input type="hidden" name="form_action" value="delete">
+                        <input type="hidden" name="id" value="<?= (int)$v['id'] ?>">
+                        <button type="submit" class="icon-btn" title="Archive"><i class="bi bi-trash"></i></button>
+                      </form>
+                    <?php endif; ?>
                   </div>
                 </td>
               </tr>

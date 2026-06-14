@@ -35,8 +35,8 @@ $query = "SELECT
             p.payment_method
           FROM bookings b
           JOIN users u ON b.user_id = u.id
-          JOIN venues v ON b.venue_id = v.id
-          JOIN event e ON b.event_id = e.event_id
+          JOIN venues v ON b.venue_id = v.id AND v.archived = 0
+          JOIN event e ON b.event_id = e.event_id AND e.archived = 0
           LEFT JOIN payments p ON b.cart_id = p.cart_id
           WHERE b.event_date BETWEEN '$start_date_clean' AND '$end_date_clean'";
 
@@ -49,7 +49,7 @@ $result = $conn->query($query);
 // 4. CHART QUERY 1: Revenue per Venue
 $venue_chart_query = "SELECT v.name AS venue_name, SUM(b.total_price) AS venue_revenue
                       FROM bookings b
-                      JOIN venues v ON b.venue_id = v.id
+                      JOIN venues v ON b.venue_id = v.id AND v.archived = 0
                       WHERE b.event_date BETWEEN '$start_date_clean' AND '$end_date_clean'
                       AND b.status != 'cancelled'
                       GROUP BY b.venue_id";
@@ -66,7 +66,7 @@ while($row = $venue_chart_result->fetch_assoc()) {
 // 5. CHART QUERY 2: Bookings Count per Event Type
 $event_chart_query = "SELECT e.event_name, COUNT(b.booking_id) AS event_count
                       FROM bookings b
-                      JOIN event e ON b.event_id = e.event_id
+                      JOIN event e ON b.event_id = e.event_id AND e.archived = 0
                       WHERE b.event_date BETWEEN '$start_date_clean' AND '$end_date_clean'
                       GROUP BY b.event_id";
 $event_chart_result = $conn->query($event_chart_query);

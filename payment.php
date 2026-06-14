@@ -74,7 +74,7 @@ if (!empty($addons)) {
     $placeholders = implode(',', array_fill(0, count($addons), '?'));
     $types = str_repeat('s', count($addons));
     $stmt  = $conn->prepare(
-        "SELECT addon_name, price FROM addons WHERE addon_name IN ($placeholders)"
+        "SELECT addon_name, price FROM addons WHERE archived = 0 AND addon_name IN ($placeholders)"
     );
     $stmt->bind_param($types, ...$addons);
     $stmt->execute();
@@ -104,7 +104,7 @@ if ($user) {
 }
 
 if (empty($eventName) && !empty($eventType) && ctype_digit(strval($eventType))) {
-    $stmt = $conn->prepare("SELECT event_name FROM event WHERE event_id = ? LIMIT 1");
+    $stmt = $conn->prepare("SELECT event_name FROM event WHERE event_id = ? AND archived = 0 LIMIT 1");
     $stmt->bind_param('i', $eventType);
     $stmt->execute();
     $row = $stmt->get_result()->fetch_assoc();

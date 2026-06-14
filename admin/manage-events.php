@@ -45,15 +45,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // C. DELETE EVENT TYPE
+    // C. DELETE EVENT TYPE (Soft Delete - Archive)
     if ($action === 'delete_event') {
         $id = (int)($_POST['event_id'] ?? 0);
         if ($id > 0) {
-            $stmt = $conn->prepare("DELETE FROM event WHERE event_id = ?");
+            $stmt = $conn->prepare("UPDATE event SET archived = 1 WHERE event_id = ?");
             $stmt->bind_param('i', $id);
             $stmt->execute();
             $stmt->close();
-            $msg = "Event Type successfully deleted!";
+            $msg = "Event Type successfully archived!";
         }
     }
 
@@ -86,26 +86,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // F. DELETE ADD-ON
+    // F. DELETE ADD-ON (Soft Delete - Archive)
     if ($action === 'delete_addon') {
         $id = (int)($_POST['addon_id'] ?? 0);
         if ($id > 0) {
-            $stmt = $conn->prepare("DELETE FROM addons WHERE addon_id = ?");
+            $stmt = $conn->prepare("UPDATE addons SET archived = 1 WHERE addon_id = ?");
             $stmt->bind_param('i', $id);
             $stmt->execute();
             $stmt->close();
-            $msg = "Add-on successfully deleted!";
+            $msg = "Add-on successfully archived!";
         }
     }
 }
 
 /* ── 2. FETCH DATA FOR EVENT-CENTRIC DISPLAY ─────────────────────── */
-$events = $conn->query("SELECT event_id, event_name FROM event ORDER BY event_name ASC")->fetch_all(MYSQLI_ASSOC);
+$events = $conn->query("SELECT event_id, event_name FROM event WHERE archived = 0 ORDER BY event_name ASC")->fetch_all(MYSQLI_ASSOC);
 
 // Kinukuha natin ang addons at igru-grupo natin base sa kanilang event_id
 $addons_raw = $conn->query("
     SELECT addon_id, event_id, addon_name, price 
     FROM addons 
+    WHERE archived = 0
     ORDER BY event_id ASC, addon_name ASC
 ")->fetch_all(MYSQLI_ASSOC);
 

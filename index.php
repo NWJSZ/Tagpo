@@ -28,13 +28,14 @@ $venueRows = $conn->query("
            COUNT(r.review_id) AS review_count
     FROM venues v
     LEFT JOIN reviews r ON r.venue_id = v.id
+    WHERE v.archived = 0
     GROUP BY v.id
     ORDER BY v.id DESC
 ")->fetch_all(MYSQLI_ASSOC);
 
 // Pull amenities to build a short "tag" line per venue
 $amenitiesByVenue = [];
-$amenityRows = $conn->query("SELECT venue_id, amenity_name FROM amenities")->fetch_all(MYSQLI_ASSOC);
+$amenityRows = $conn->query("SELECT a.venue_id, a.amenity_name FROM amenities a JOIN venues v ON a.venue_id = v.id WHERE v.archived = 0")->fetch_all(MYSQLI_ASSOC);
 foreach ($amenityRows as $row) {
     $amenitiesByVenue[$row['venue_id']][] = $row['amenity_name'];
 }

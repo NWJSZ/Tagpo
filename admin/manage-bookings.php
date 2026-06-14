@@ -152,7 +152,7 @@ for ($i = 0; $i < 7; $i++) {
 }
 $weekEnd = (clone $weekStart)->modify('+6 days');
 
-$venues = $conn->query("SELECT id, name, capacity, image_url FROM venues ORDER BY id")->fetch_all(MYSQLI_ASSOC);
+$venues = $conn->query("SELECT id, name, capacity, image_url FROM venues WHERE archived = 0 ORDER BY id")->fetch_all(MYSQLI_ASSOC);
 
 $stmt = $conn->prepare("
     SELECT b.booking_id, b.venue_id, b.event_date, b.event_time, b.duration,

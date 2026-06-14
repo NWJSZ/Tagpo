@@ -19,7 +19,7 @@ $currentPage = 'dashboard';
 $totalBookings  = (int) ($conn->query("SELECT COUNT(*) AS c FROM bookings")->fetch_assoc()['c'] ?? 0);
 $totalUsers     = (int) ($conn->query("SELECT COUNT(*) AS c FROM users WHERE role = 'user'")->fetch_assoc()['c'] ?? 0);
 $pendingPay     = (int) ($conn->query("SELECT COUNT(*) AS c FROM payments WHERE payment_status = 'pending'")->fetch_assoc()['c'] ?? 0);
-$activeVenues   = (int) ($conn->query("SELECT COUNT(*) AS c FROM venues")->fetch_assoc()['c'] ?? 0);
+$activeVenues   = (int) ($conn->query("SELECT COUNT(*) AS c FROM venues WHERE archived = 0")->fetch_assoc()['c'] ?? 0);
 
 $newThisWeek = (int) ($conn->query("SELECT COUNT(*) AS c FROM bookings WHERE event_date >= CURDATE() - INTERVAL 7 DAY")->fetch_assoc()['c'] ?? 0);
 

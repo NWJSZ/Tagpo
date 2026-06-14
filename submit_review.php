@@ -34,7 +34,7 @@ if (!$venueId || !$rating || $rating < 1 || $rating > 5 || $reviewText === '') {
     die('Please fill out all fields and provide a rating between 1 and 5.');
 }
 
-$stmt = $conn->prepare("SELECT id FROM venues WHERE id = ? LIMIT 1");
+$stmt = $conn->prepare("SELECT id FROM venues WHERE id = ? AND archived = 0 LIMIT 1");
 $stmt->bind_param('i', $venueId);
 $stmt->execute();
 if (!$stmt->get_result()->fetch_assoc()) {
