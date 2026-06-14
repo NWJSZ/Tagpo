@@ -99,7 +99,7 @@ if ($selected) {
   } else {
     $selected['reviews_list'] = [];
     $selected['reviews'] = 0;
-    $selected['rating'] = $selected['rating'] ?? 5.0; 
+    $selected['rating'] = 0.0; 
   }
 }
 
@@ -218,7 +218,13 @@ function stars(float $rating): string
 
         <div class="venue-meta">
           <span>📍 <?php echo htmlspecialchars($selected['location']); ?></span>
-          <span>⭐ <?php echo $selected['rating']; ?> (<?php echo $selected['reviews']; ?> reviews)</span>
+          <span>
+            <?php if ($selected['reviews'] > 0): ?>
+              ⭐ <?php echo $selected['rating']; ?> (<?php echo $selected['reviews']; ?> reviews)
+            <?php else: ?>
+              ⭐ No reviews yet
+            <?php endif; ?>
+          </span>
           <span class="venue-badge-inline green">✓ Verified Venue</span>
           <span class="venue-badge-inline">⚡ Responds within <?php echo htmlspecialchars($selected['response']); ?></span>
         </div>
@@ -323,30 +329,42 @@ function stars(float $rating): string
           <?php endif; ?>
           
           <div class="review-summary">
-            <div class="rating-big"><?php echo $selected['rating']; ?></div>
-            <div>
-              <div class="stars"><?php echo stars($selected['rating']); ?></div>
-              <div class="review-count">Based on <?php echo $selected['reviews']; ?> reviews</div>
-            </div>
+            <?php if ($selected['reviews'] > 0): ?>
+              <div class="rating-big"><?php echo $selected['rating']; ?></div>
+              <div>
+                <div class="stars"><?php echo stars($selected['rating']); ?></div>
+                <div class="review-count">Based on <?php echo $selected['reviews']; ?> reviews</div>
+              </div>
+            <?php else: ?>
+              <div class="rating-big">—</div>
+              <div>
+                <div class="stars" style="color: #ccc;"><?php echo stars(0); ?></div>
+                <div class="review-count">No reviews yet</div>
+              </div>
+            <?php endif; ?>
           </div>
 
-          <?php foreach ($selected['reviews_list'] as $r): ?>
-            <div class="review-card">
-              <div class="reviewer">
-                <div class="reviewer-avatar" style="background:<?php echo $r['color']; ?>;">
-                  <?php echo htmlspecialchars($r['initials']); ?>
+          <?php if (empty($selected['reviews_list'])): ?>
+            <p class="text-muted text-center my-4">Be the first to share your experience about this venue!</p>
+          <?php else: ?>
+            <?php foreach ($selected['reviews_list'] as $r): ?>
+              <div class="review-card">
+                <div class="reviewer">
+                  <div class="reviewer-avatar" style="background:<?php echo $r['color']; ?>;">
+                    <?php echo htmlspecialchars($r['initials']); ?>
+                  </div>
+                  <div>
+                    <div class="reviewer-name"><?php echo htmlspecialchars($r['name']); ?></div>
+                    <div class="reviewer-date"><?php echo htmlspecialchars($r['date']); ?></div>
+                  </div>
+                  <div class="stars-sm">
+                    <?php echo str_repeat('★', $r['rating']) . str_repeat('☆', 5 - $r['rating']); ?>
+                  </div>
                 </div>
-                <div>
-                  <div class="reviewer-name"><?php echo htmlspecialchars($r['name']); ?></div>
-                  <div class="reviewer-date"><?php echo htmlspecialchars($r['date']); ?></div>
-                </div>
-                <div class="stars-sm">
-                  <?php echo str_repeat('★', $r['rating']) . str_repeat('☆', 5 - $r['rating']); ?>
-                </div>
+                <div class="review-text"><?php echo htmlspecialchars($r['text']); ?></div>
               </div>
-              <div class="review-text"><?php echo htmlspecialchars($r['text']); ?></div>
-            </div>
-          <?php endforeach; ?>
+            <?php endforeach; ?>
+          <?php endif; ?>
         </div>
 
         <div class="review-form mt-4 p-3 border rounded bg-light">
