@@ -122,21 +122,9 @@ if (!$stmt->execute()) {
 $bookingId = (int) $conn->insert_id;
 $stmt->close();
 
-// ── Insert payment record ────────────────────────────────────────────
-$paymentsForeignKey = getPaymentsForeignKeyColumn($conn);
-$paymentKeyColumn = $paymentsForeignKey === 'booking_id' ? 'booking_id' : 'cart_id';
-$paymentKeyValue  = $paymentsForeignKey === 'booking_id' ? $bookingId : $cartId;
-$stmt = $conn->prepare(
-    "INSERT INTO payments ({$paymentKeyColumn}, amount, payment_method, payment_status, payment_date)
-     VALUES (?, ?, 'gcash', 'pending', NOW())"
-);
-$stmt->bind_param('id', $paymentKeyValue, $totalPrice);
-
-if (!$stmt->execute()) {
-    error_log('Payment insert failed: ' . $stmt->error);
-    die('Payment processing failed. Please try again.');
-}
-$stmt->close();
+// NOTE: Do NOT create a payment record here. Payment records should be created
+// only when the user proceeds to the payment step (checkout/payment), so that
+// bookings left in cart are not prematurely marked with a payment method.
 
 
 // ── Insert booking_addons ─────────────────────────────────────────────────────

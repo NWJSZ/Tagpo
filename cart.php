@@ -293,8 +293,14 @@ $backToVenueUrl = $_SESSION['last_venue_visited'] ?? 'search.php';
                 endforeach;
               endif;
 
+              // Prefer the authoritative total stored in session (calculated at add-to-cart),
+              // which already includes add-ons. Fallback to recomputing if not present.
               $venuePrice = $item['venue_price'] ?? 35000;
-              $itemTotal = $venuePrice + $addonsTotal;
+              if (isset($item['total_price'])) {
+                  $itemTotal = (float) $item['total_price'];
+              } else {
+                  $itemTotal = $venuePrice + $addonsTotal;
+              }
             ?>
               <!-- Row Item Card -->
               <div class="cart-item-card p-4 mb-3 fade-up d-flex gap-2" id="card-<?php echo $index; ?>">

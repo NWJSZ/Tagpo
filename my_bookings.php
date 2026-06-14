@@ -299,27 +299,32 @@ function statusBadge(string $status): string {
                 <div class="d-flex justify-content-between align-items-end flex-wrap gap-3 mt-3">
 
                   <div class="payment-info-row">
-                    <?php if ($b['payment_method']): ?>
-                      <div>
-                        <strong>Method:</strong>
-                        <?= htmlspecialchars(ucwords(str_replace('_', ' ', $b['payment_method']))) ?>
-                      </div>
-                    <?php endif; ?>
-                    <?php if ($txId): ?>
-                      <div><strong>Transaction ID:</strong> <?= htmlspecialchars($txId) ?></div>
-                    <?php endif; ?>
-                    <?php if ($payDate): ?>
-                      <div>
-                        <strong>Paid on:</strong>
-                        <?= htmlspecialchars(date('F j, Y \a\t g:i A', strtotime($payDate))) ?>
-                      </div>
-                    <?php endif; ?>
-                    <?php if (!$b['payment_status']): ?>
+                    <?php if ($b['payment_status'] === 'paid'): ?>
+                      <?php if (!empty($b['payment_method'])): ?>
+                        <div>
+                          <strong>Method:</strong>
+                          <?= htmlspecialchars(ucwords(str_replace('_', ' ', $b['payment_method']))) ?>
+                        </div>
+                      <?php endif; ?>
+
+                      <?php if ($txId): ?>
+                        <div><strong>Transaction ID:</strong> <?= htmlspecialchars($txId) ?></div>
+                      <?php endif; ?>
+
+                      <?php if ($payDate): ?>
+                        <div>
+                          <strong>Paid on:</strong>
+                          <?= htmlspecialchars(date('F j, Y \a\t g:i A', strtotime($payDate))) ?>
+                        </div>
+                      <?php endif; ?>
+
+                    <?php else: ?>
                       <div class="text-warning fw-semibold">
                         <i class="bi bi-exclamation-circle me-1"></i>
                         Payment not yet completed
                       </div>
                     <?php endif; ?>
+
                     <div class="mt-1 text-muted" style="font-size:.75rem;">
                       Booking #<?= (int)$b['booking_id'] ?>
                     </div>
