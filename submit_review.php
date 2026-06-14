@@ -27,11 +27,11 @@ $rating     = filter_input(INPUT_POST, 'rating',   FILTER_VALIDATE_INT);
 $reviewText = trim($_POST['review_text'] ?? '');
 
 if (!$userId) {
-    die('Session error: Hindi matukoy ang user profile mo.');
+    die('Session error: Unable to retrieve your user profile.');
 }
 
 if (!$venueId || !$rating || $rating < 1 || $rating > 5 || $reviewText === '') {
-    die('Kailangan sagutan ang lahat ng fields at ang rating ay 1 hanggang 5.');
+    die('Please fill out all fields and provide a rating between 1 and 5.');
 }
 
 $stmt = $conn->prepare("SELECT id FROM venues WHERE id = ? LIMIT 1");
@@ -39,7 +39,7 @@ $stmt->bind_param('i', $venueId);
 $stmt->execute();
 if (!$stmt->get_result()->fetch_assoc()) {
     $stmt->close();
-    die('Hindi mahanap ang venue na ito.');
+    die('Venue not found.');
 }
 $stmt->close();
 
@@ -54,5 +54,5 @@ if ($stmt->execute()) {
     exit();
 } else {
     error_log('Review insert failed: ' . $stmt->error);
-    die('Paumanhin, nagka-error sa pag-save ng review mo.');
+    die('Failed to save your review. Please try again.');
 }
