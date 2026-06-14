@@ -295,6 +295,17 @@ CREATE TABLE reviews (
 );
 
 -- =====================================================
+-- PASSWORD RESETS
+-- =====================================================
+CREATE TABLE password_resets (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(255) NOT NULL,
+    otp_code VARCHAR(6) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX (email)
+);
+-- =====================================================
 -- SEED DATA
 -- =====================================================
 

@@ -89,6 +89,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
       <?php endif; ?>
 
+      <?php if (isset($_GET['status']) && $_GET['status'] === 'reset_success'): ?>
+        <div class="auth-alert" style="background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.25);color:#6ee7b7;">
+          <i class="fa-solid fa-circle-check me-2"></i> Password successfully reset! Please login with your new password.
+        </div>
+      <?php endif; ?>
+
       <!-- INACTIVITY KICK-OUT NOTIFICATION -->
       <?php if (isset($_GET['session_expired']) && $_GET['session_expired'] === 'inactivity'): ?>
         <div class="auth-alert" style="background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.25);color:#fcd34d;">
@@ -119,6 +125,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <button type="button" class="input-group-text auth-password-toggle" onclick="togglePwd('pw-login',this)">
               <i class="fa-regular fa-eye"></i>
             </button>
+          </div>
+          <div class="text-end mt-1">
+            <a href="forgot_password.php" style="font-size: 0.82rem; color: #a3704c; text-decoration: none;">Forgot Password?</a>
           </div>
         </div>
         <button type="submit" class="btn-auth-submit">
