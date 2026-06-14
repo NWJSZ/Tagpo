@@ -13,12 +13,13 @@ if (isLoggedIn()) {
   setcookie('user_session', $currentUser['email'], time() + (60 * 60 * 24 * 7), '/');
 }
 
+// Kunin ang id mula sa URL parameter (?id=xxx)
+$id = $_GET['id'] ?? null;
 
 // STEP 3: Kunin yung mga in-add ng Admin mula sa Session
 $session_venues = $_SESSION['venues'] ?? [];
 
 // STEP 4: PAGSAMAHIN SILA. 
-// Ngayon, ang $venues ay naglalaman na ng original + new venues.
 $venues = array_merge($hardcoded_venues, $session_venues);
 
 // STEP 5: Hanapin yung venue base sa ID na nasa URL (?id=xxxx)
@@ -30,15 +31,15 @@ foreach ($venues as $v) {
   }
 }
 
-// STEP 6: Fetch reviews from database
+// STEP 6: Fetch reviews from database using correct first_name and last_name columns
 if ($selected) {
   $venueId = (int) $selected['id'];
   
-  // Fetch all reviews for this venue from database
+  // ITINAMA NA QUERY: Gagamit ng first_name at last_name mula sa users table niyo
   $reviewsQuery = $conn->prepare(
     "SELECT r.review_id, r.rating, r.review_text, r.review_date, u.first_name, u.last_name 
      FROM reviews r 
-     JOIN users u ON r.user_id = u.id 
+     LEFT JOIN users u ON r.user_id = u.id 
      WHERE r.venue_id = ? 
      ORDER BY r.review_date DESC"
   );
@@ -58,19 +59,22 @@ if ($selected) {
     $lastName = htmlspecialchars($row['last_name'] ?? '');
     $fullName = trim($firstName . ' ' . $lastName);
     if (empty($fullName)) {
-      $fullName = 'Anonymous';
+      $fullName = 'Anonymous Guest';
     }
     
-    // Extract initials
+    // Extract initials safely
     $initials = substr($firstName, 0, 1) . substr($lastName, 0, 1);
     if (strlen($initials) < 2) {
       $initials = substr($fullName, 0, 2);
     }
     $initials = strtoupper($initials);
+    if (empty($initials)) {
+      $initials = "AG";
+    }
     
-    // Generate consistent color from name
+    // Generate consistent color from first_name
     $colors = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
-    $colorIndex = (ord($firstName[0] ?? 'A') + ord($lastName[0] ?? 'A')) % count($colors);
+    $colorIndex = ord($firstName[0] ?? 'A') % count($colors);
     $color = $colors[$colorIndex];
     
     // Format date
@@ -88,11 +92,15 @@ if ($selected) {
   }
   $reviewsQuery->close();
   
-  // Update selected venue with database reviews if any exist
+  // Update selected venue structure for HTML display
   if ($reviewCount > 0) {
     $selected['reviews_list'] = $dbReviews;
     $selected['reviews'] = $reviewCount;
     $selected['rating'] = round($totalRating / $reviewCount, 1);
+  } else {
+    $selected['reviews_list'] = [];
+    $selected['reviews'] = 0;
+    $selected['rating'] = $selected['rating'] ?? 5.0; 
   }
 }
 
@@ -102,7 +110,6 @@ function stars(float $rating): string
   $empty = 5 - $full;
   return str_repeat('★', $full) . str_repeat('☆', $empty);
 }
-
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -181,10 +188,10 @@ function stars(float $rating): string
 
     <div class="tab-bar">
       <div class="tab active" onclick="setTab(this)">Photos</div>
-      <div class="tab" onclick="scrollToSection(about)">About</div>
-      <div class="tab" onclick="scrollToSection(capacity)">Capacity</div>
-      <div class="tab" onclick="scrollToSection(amenities)">Information</div>
-      <div class="tab" onclick="scrollToSection(reviews)">Reviews</div>
+      <div class="tab" onclick="scrollToSection('about')">About</div>
+      <div class="tab" onclick="scrollToSection('capacity')">Capacity</div>
+      <div class="tab" onclick="scrollToSection('amenities')">Information</div>
+      <div class="tab" onclick="scrollToSection('reviews')">Reviews</div>
     </div>
 
     <div class="gallery-grid">
@@ -260,7 +267,6 @@ function stars(float $rating): string
           <div class="section-title">Amenities &amp; Features</div>
           <div class="amenities-grid">
             <?php 
-            // 1. KUNIN ANG AMENITIES DIREKTA SA DATABASE PARA SYNCED SA ADMIN!
             $db_amenities = [];
             if (isset($conn) && $selected) {
                 $v_id = (int)$selected['id'];
@@ -274,16 +280,13 @@ function stars(float $rating): string
                 $amQuery->close();
             }
 
-            // 2. KUNG WALANG LAMAN ANG DB, GAMITIN ANG BACKUP GALING SA HARDCODED ARRAY
             $amenities_to_loop = !empty($db_amenities) ? $db_amenities : ($selected['amenities'] ?? []);
 
             if (!empty($amenities_to_loop)): 
               foreach ($amenities_to_loop as $a): 
-                // Sinisigurado nating gagana kahit 'amenity_name', 'label', o 'name' ang gamit na key
                 $raw_amenity = $a['amenity_name'] ?? $a['label'] ?? $a['name'] ?? '';
                 
                 if (!empty($raw_amenity)):
-                  // Hinihiwalay ang emoji at text gamit ang vertical pipe (|)
                   $parts = explode('|', $raw_amenity);
                   $icon  = isset($parts[1]) ? trim($parts[0]) : '✨'; 
                   $label = isset($parts[1]) ? trim($parts[1]) : trim($parts[0]);
@@ -348,13 +351,9 @@ function stars(float $rating): string
         </div>
 
         <div class="review-form mt-4 p-3 border rounded bg-light">
-
           <h5 class="mb-3">Write a Review</h5>
-
           <form action="submit_review.php" method="POST">
-
             <input type="hidden" name="venue_id" value="<?php echo $selected['id']; ?>">
-
             <div class="mb-2">
               <label>Rating</label>
               <select name="rating" class="form-control" required>
@@ -366,16 +365,13 @@ function stars(float $rating): string
                 <option value="1">★☆☆☆☆ (1)</option>
               </select>
             </div>
-
             <div class="mb-2">
               <label>Review</label>
               <textarea name="review_text" class="form-control" rows="3" placeholder="Share your experience..." required></textarea>
             </div>
-
             <button type="submit" class="btn btn-primary btn-sm">
               Submit Review
             </button>
-
           </form>
         </div>
 
@@ -568,8 +564,9 @@ function stars(float $rating): string
             </div>
           </form>
         </div>
-      </div><?php else: ?>
-
+      </div>
+    
+    <?php else: ?>
       <div class="not-found">
         <h2>Venue Not Found</h2>
         <p>The venue you're looking for doesn't exist or may have been removed.</p>
@@ -577,173 +574,152 @@ function stars(float $rating): string
       </div>
     <?php endif; ?>
 
-    </div><?php include 'includes/footer.php'; ?>
+  </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-      function setTab(el) {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        el.classList.add('active');
+  <?php include 'includes/footer.php'; ?>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    function setTab(el) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+    }
+
+    function switchTab(el) {
+      document.querySelectorAll('.form-tab').forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+    }
+
+    function adjustGuests(delta) {
+      const input = document.getElementById('guestCount');
+      if (!input) return;
+      const val = parseInt(input.value) + delta;
+      input.value = Math.max(50, Math.min(parseInt(input.max), val));
+    }
+
+    function scrollToSection(id) {
+      if (!id) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        const el = document.getElementById(id);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
       }
+    }
 
-      function switchTab(el) {
-        document.querySelectorAll('.form-tab').forEach(t => t.classList.remove('active'));
-        el.classList.add('active');
-      }
+    let currentImageIndex = 0;
+    let galleryImages = [];
 
-      function adjustGuests(delta) {
-        const input = document.getElementById('guestCount');
-        if (!input) return;
-        const val = parseInt(input.value) + delta;
-        input.value = Math.max(50, Math.min(parseInt(input.max), val));
-      }
+    function openLightbox(src) {
+      const lightbox = document.getElementById('lightbox');
+      const lightboxImg = document.getElementById('lightboxImg');
 
-      function scrollToSection(id) {
-        if (!id) {
-          window.scrollTo({
-            top: 0,
-            behavior: 'smooth'
-          });
-        } else {
-          const el = document.getElementById(id);
-          if (el) {
-            el.scrollIntoView({
-              behavior: 'smooth',
-              block: 'start'
-            });
+      galleryImages = Array.from(document.querySelectorAll('.gallery-img')).map(el => el.dataset.src);
+      currentImageIndex = galleryImages.indexOf(src);
+
+      lightboxImg.src = src;
+      lightbox.classList.add('show');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeLightbox(event) {
+      if (event) {
+        if (event.target.id === 'lightbox') {
+          // Backdrop click
+        } else if (!event.target.closest('.lightbox-content') && event.target.id !== 'lightbox') {
+          if (!event.target.classList.contains('lightbox-close') &&
+            !event.target.classList.contains('lightbox-prev') &&
+            !event.target.classList.contains('lightbox-next')) {
+            return;
           }
         }
       }
 
-      // LIGHTBOX FUNCTIONS
-      let currentImageIndex = 0;
-      let galleryImages = [];
-
-      function openLightbox(src) {
-        const lightbox = document.getElementById('lightbox');
-        const lightboxImg = document.getElementById('lightboxImg');
-
-        galleryImages = Array.from(document.querySelectorAll('.gallery-img')).map(el => el.dataset.src);
-        currentImageIndex = galleryImages.indexOf(src);
-
-        lightboxImg.src = src;
-        lightbox.classList.add('show');
-        document.body.style.overflow = 'hidden';
+      const lightbox = document.getElementById('lightbox');
+      if (lightbox) {
+        lightbox.classList.remove('show');
+        document.body.style.overflow = 'auto';
       }
+    }
 
-      function closeLightbox(event) {
-        if (event) {
-          if (event.target.id === 'lightbox') {
-            // Backdrop click
-          } else if (!event.target.closest('.lightbox-content') && event.target.id !== 'lightbox') {
-            if (!event.target.classList.contains('lightbox-close') &&
-              !event.target.classList.contains('lightbox-prev') &&
-              !event.target.classList.contains('lightbox-next')) {
-              return;
+    function nextImage(event) {
+      event.stopPropagation();
+      currentImageIndex = (currentImageIndex + 1) % galleryImages.length;
+      document.getElementById('lightboxImg').src = galleryImages[currentImageIndex];
+    }
+
+    function prevImage(event) {
+      event.stopPropagation();
+      currentImageIndex = (currentImageIndex - 1 + galleryImages.length) % galleryImages.length;
+      document.getElementById('lightboxImg').src = galleryImages[currentImageIndex];
+    }
+
+    document.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape') {
+        closeLightbox();
+      }
+    });
+
+    document.querySelector('.lightbox-close')?.addEventListener('click', closeLightbox);
+
+    function initDatePicker() {
+      const dateInput = document.getElementById('event_date');
+      if (dateInput) {
+        const today = new Date();
+        const minDate = today.toISOString().split('T')[0];
+        dateInput.setAttribute('min', minDate);
+
+        dateInput.addEventListener('change', function() {
+          const selectedDate = new Date(this.value);
+          const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+          if (selectedDate < todayDate) {
+            alert('⚠️ Past dates are not allowed. Please select today or a future date.');
+            this.value = '';
+          }
+        });
+      }
+    }
+
+    function initAddonFilters() {
+      const eventSelect = document.querySelector('select[name="event_id"]');
+      const addonItems = document.querySelectorAll('.addon-group-item');
+      const noEventMessage = document.getElementById('no-event-message');
+
+      if (eventSelect) {
+        eventSelect.addEventListener('change', function() {
+          const selectedEvent = this.value;
+          let countVisible = 0;
+
+          addonItems.forEach(item => {
+            const checkbox = item.querySelector('input[type="checkbox"]');
+            if (checkbox) checkbox.checked = false;
+
+            if (item.getAttribute('data-event') === selectedEvent) {
+              item.style.display = 'block';
+              countVisible++;
+            } else {
+              item.style.display = 'none';
+            }
+          });
+
+          if (noEventMessage) {
+            if (countVisible > 0) {
+              noEventMessage.style.display = 'none';
+            } else {
+              noEventMessage.style.display = 'block';
             }
           }
-        }
-
-        const lightbox = document.getElementById('lightbox');
-        if (lightbox) {
-          lightbox.classList.remove('show');
-          document.body.style.overflow = 'auto';
-        }
+        });
       }
+    }
 
-      function nextImage(event) {
-        event.stopPropagation();
-        currentImageIndex = (currentImageIndex + 1) % galleryImages.length;
-        document.getElementById('lightboxImg').src = galleryImages[currentImageIndex];
-      }
-
-      function prevImage(event) {
-        event.stopPropagation();
-        currentImageIndex = (currentImageIndex - 1 + galleryImages.length) % galleryImages.length;
-        document.getElementById('lightboxImg').src = galleryImages[currentImageIndex];
-      }
-
-      document.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape') {
-          closeLightbox();
-        }
-      });
-
-      document.querySelector('.lightbox-close')?.addEventListener('click', closeLightbox);
-
-      // Initialize date input with minimum date (today)
-      function initDatePicker() {
-        const dateInput = document.getElementById('event_date');
-        if (dateInput) {
-          const today = new Date();
-          const minDate = today.toISOString().split('T')[0];
-          dateInput.setAttribute('min', minDate);
-
-          dateInput.addEventListener('change', function() {
-            const selectedDate = new Date(this.value);
-            const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
-            if (selectedDate < todayDate) {
-              alert('⚠️ Past dates are not allowed. Please select today or a future date.');
-              this.value = '';
-            }
-          });
-
-          dateInput.addEventListener('blur', function() {
-            if (this.value) {
-              const selectedDate = new Date(this.value);
-              const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
-              if (selectedDate < todayDate) {
-                alert('⚠️ Past dates are not allowed. Please select today or a future date.');
-                this.value = '';
-              }
-            }
-          });
-        }
-      }
-
-      // Dynamic Add-ons Filtering Function
-      function initAddonFilters() {
-        const eventSelect = document.querySelector('select[name="event_id"]');
-        const addonItems = document.querySelectorAll('.addon-group-item');
-        const noEventMessage = document.getElementById('no-event-message');
-
-        if (eventSelect) {
-          eventSelect.addEventListener('change', function() {
-            const selectedEvent = this.value;
-            let countVisible = 0;
-
-            addonItems.forEach(item => {
-              const checkbox = item.querySelector('input[type="checkbox"]');
-              if (checkbox) checkbox.checked = false;
-
-              if (item.getAttribute('data-event') === selectedEvent) {
-                item.style.display = 'block';
-                countVisible++;
-              } else {
-                item.style.display = 'none';
-              }
-            });
-
-            if (noEventMessage) {
-              if (countVisible > 0) {
-                noEventMessage.style.display = 'none';
-              } else {
-                noEventMessage.style.display = 'block';
-              }
-            }
-          });
-        }
-      }
-
-      // Initialize on page load
-      document.addEventListener('DOMContentLoaded', function() {
-        initDatePicker();
-        initAddonFilters();
-      });
-    </script>
+    document.addEventListener('DOMContentLoaded', function() {
+      initDatePicker();
+      initAddonFilters();
+    });
+  </script>
 
 </body>
-
 </html>
