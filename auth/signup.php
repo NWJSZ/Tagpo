@@ -63,8 +63,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $newUserId = $conn->insert_id;
 
             // AUTO LOGIN
-            // Mas maganda na hiwalay sila sa session para kung gusto mo tawagin 
-            // ang "Hi, John!", gagamitin mo lang ang $_SESSION['current_user']['first_name']
             $_SESSION['current_user'] = [
                 'id' => $newUserId,
                 'first_name' => $firstName,
@@ -135,7 +133,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     </div>
                 <?php endif; ?>
 
-                <form method="POST">
+                <form method="POST" id="signup-form">
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="auth-label">First Name</label>
@@ -165,8 +163,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         <label class="auth-label">Phone Number</label>
                         <div class="input-group">
                             <span class="input-group-text">+63</span>
-                            <input type="text" name="phone" class="form-control" placeholder="9XX XXX XXXX" value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>" maxlength="10" required>
+                            <input type="text" id="phone-input" name="phone" class="form-control" placeholder="9XX XXX XXXX" value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>" maxlength="10" required>
                         </div>
+                        <div id="phone-feedback" style="font-size: 0.78rem; margin-top: 4px; display: none;"></div>
                     </div>
 
                     <div class="mb-3">
@@ -191,7 +190,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         </div>
                     </div>
 
-                    <button type="submit" class="btn-auth-submit">
+                    <button type="submit" id="submit-btn" class="btn-auth-submit">
                         Create Account <i class="fa-solid fa-arrow-right ms-2"></i>
                     </button>
                 </form>
@@ -199,9 +198,47 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <p class="auth-switch">
                     Already have an account? <a href="login.php">Sign in</a>
                 </p>
+            </div>
+        </div>
+    </div>
 
-                <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-                <script src="../assets/js/loginsignup.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../assets/js/loginsignup.js"></script>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const phoneInput = document.getElementById('phone-input');
+        const phoneFeedback = document.getElementById('phone-feedback');
+        const submitBtn = document.getElementById('submit-btn');
+
+        function validatePhone() {
+            // 1. Numbers Only Rule
+            let val = phoneInput.value.replace(/\D/g, '');
+            phoneInput.value = val;
+
+            if (val.length === 0) {
+                phoneFeedback.style.display = 'none';
+                submitBtn.disabled = false;
+                return;
+            }
+
+            phoneFeedback.style.display = 'block';
+
+            // 2. 10 Digits Rule
+           if (val.length < 10) {
+                phoneFeedback.style.color = '#f59e0b'; //Warning
+                phoneFeedback.innerHTML = `<i class="fa-solid fa-circle-info me-1"></i> Must be exactly 10 digits (${10 - val.length} remaining).`;
+                submitBtn.disabled = true;
+            } else if (val.length === 10) {
+                phoneFeedback.style.color = '#10b981'; //Success
+                phoneFeedback.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i> Phone number is valid!';
+                submitBtn.disabled = false;
+            }
+        }
+
+        phoneInput.addEventListener('input', validatePhone);
+    });
+    </script>
 </body>
 
 </html>
