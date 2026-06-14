@@ -1,87 +1,54 @@
 <?php
-namespace PHPMailer\PHPMailer;
-
 require_once dirname(__DIR__) . '/config/database.php';
 require_once dirname(__DIR__) . '/config/session_config.php';
 require_once dirname(__DIR__) . '/config/app.php';
 
-// ==========================================
-// DIRECT EMBEDDED PHPMAILER ENGINE 
-// ==========================================
-class Exception extends \Exception {
-    public function errorMessage() { return $this->getMessage(); }
-}
-
-class SMTP {
-    const LE = "\r\n";
-    protected $smtp_conn = null;
-    public function connect($host, $port = null, $timeout = 30) {
-        $this->smtp_conn = @fsockopen($host, $port, $errno, $errstr, $timeout);
-        if (!$this->smtp_conn) return false;
-        fgets($this->smtp_conn, 515);
-        fputs($this->smtp_conn, "EHLO " . $host . self::LE);
-        fgets($this->smtp_conn, 515);
-        return true;
-    }
-    public function startTLS() {
-        if (!stream_socket_enable_crypto($this->smtp_conn, true, STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT)) return false;
-        return true;
-    }
-    public function authenticate($username, $password) {
-        fputs($this->smtp_conn, "AUTH LOGIN" . self::LE); fgets($this->smtp_conn, 515);
-        fputs($this->smtp_conn, base64_encode($username) . self::LE); fgets($this->smtp_conn, 515);
-        fputs($this->smtp_conn, base64_encode($password) . self::LE);
-        $r = fgets($this->smtp_conn, 515);
-        return (strpos($r, '235') === 0);
-    }
-    public function mail($from) { fputs($this->smtp_conn, "MAIL FROM:<" . $from . ">" . self::LE); return fgets($this->smtp_conn, 515); }
-    public function recipient($to) { fputs($this->smtp_conn, "RCPT TO:<" . $to . ">" . self::LE); return fgets($this->smtp_conn, 515); }
-    public function data($msg_data) {
-        fputs($this->smtp_conn, "DATA" . self::LE); fgets($this->smtp_conn, 515);
-        fputs($this->smtp_conn, $msg_data . self::LE . "." . self::LE); return fgets($this->smtp_conn, 515);
-    }
-    public function quit() { fputs($this->smtp_conn, "QUIT" . self::LE); fclose($this->smtp_conn); }
-}
-
-class PHPMailer {
-    public $Host = 'smtp.gmail.com';
-    public $Port = 587;
-    public $Username = '';
-    public $Password = '';
-    public $From = '';
-    public $FromName = 'TAGPO Luxury Venues';
-    public $Subject = '';
-    public $Body = '';
-    public $ErrorInfo = '';
-    protected $to = '';
-
-    public function addAddress($address) { $this->to = $address; }
-    public function send() {
-        try {
-            $smtp = new SMTP();
-            if (!$smtp->connect($this->Host, $this->Port)) throw new Exception('Connect failed');
-            if (!$smtp->startTLS()) throw new Exception('TLS failed');
-            if (!$smtp->authenticate($this->Username, $this->Password)) throw new Exception('Auth failed');
-            $smtp->mail($this->From);
-            $smtp->recipient($this->to);
-            $header = "Date: " . date('r') . "\r\nTo: " . $this->to . "\r\nFrom: " . $this->FromName . " <" . $this->From . ">\r\nSubject: " . $this->Subject . "\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n";
-            $smtp->data($header . $this->Body);
-            $smtp->quit();
-            return true;
-        } catch (\Exception $e) {
-            $this->ErrorInfo = $e->getMessage();
-            return false;
-        }
-    }
-}
-// ==========================================
-// END OF PHPMailer ENGINE
-// ==========================================
-
 global $conn; 
-
 $baseUrl = getBaseUrl();
 if (isLoggedIn()) { header('Location: ' . $baseUrl . 'index.php'); exit(); }
+
+function sendDirectGmailHTTP($toEmail, $subject, $htmlMessage, $appPassword) {
+    $senderEmail = 'nataliepaduhilao@gmail.com';
+    
+    $boundary = uniqid('np', true);
+    $headers = [
+        "From: TAGPO Luxury Venues <$senderEmail>",
+        "To: <$toEmail>",
+        "Subject: $subject",
+        "MIME-Version: 1.0",
+        "Content-Type: text/html; charset=UTF-8"
+    ];
+    
+    $emailBody = implode("\r\n", $headers) . "\r\n\r\n" . $htmlMessage;
+    
+    $smtpServer = "ssl://smtp.gmail.com";
+    $port = 465;
+    
+    $socket = @stream_socket_client("$smtpServer:$port", $errno, $errstr, 15, STREAM_CLIENT_CONNECT, stream_context_create([
+        'ssl' => ['verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true]
+    ]));
+    
+    if (!$socket) return false;
+
+    fgets($socket, 515);
+    fputs($socket, "EHLO localhost\r\n"); fgets($socket, 515);
+    fputs($socket, "AUTH LOGIN\r\n"); fgets($socket, 515);
+    fputs($socket, base64_encode($senderEmail) . "\r\n"); fgets($socket, 515);
+    fputs($socket, base64_encode($appPassword) . "\r\n"); $authResponse = fgets($socket, 515);
+    
+    if (strpos($authResponse, '235') !== 0) {
+        fclose($socket);
+        return false;
+    }
+    
+    fputs($socket, "MAIL FROM:<$senderEmail>\r\n"); fgets($socket, 515);
+    fputs($socket, "RCPT TO:<$toEmail>\r\n"); fgets($socket, 515);
+    fputs($socket, "DATA\r\n"); fgets($socket, 515);
+    fputs($socket, $emailBody . "\r\n.\r\n"); fgets($socket, 515);
+    fputs($socket, "QUIT\r\n"); fclose($socket);
+    
+    return true;
+}
 
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -107,42 +74,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute();
             $stmt->close();
 
-            $mail = new PHPMailer();
-            
-            stream_context_set_default([
-                'ssl' => [
-                    'verify_peer' => false,
-                    'verify_peer_name' => false,
-                    'allow_self_signed' => true
-                ]
-            ]);
-            
             // SENDER MACHINE
-            $mail->From     = 'nataliepaduhilao@gmail.com'; 
-            $mail->Username = 'nataliepaduhilao@gmail.com'; 
-            $mail->Password = 'abcd efgh ijkl mnop';
+            $myAppPassword = 'mbsnrnctintszddf'; 
 
-            $mail->addAddress($email);
-            $mail->Subject = 'TAGPO - Password Reset OTP';
-            $mail->Body    = "
-                <div style='font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 8px; max-width: 500px;'>
-                    <h2 style='color: #111;'>TAGPO<span style='color: #a3704c;'>.</span></h2>
-                    <p>Hi there,</p>
-                    <p>We received a request to reset your password. Use the verification code below to proceed:</p>
-                    <div style='background: #f4f4f5; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; color: #111; border-radius: 6px; margin: 20px 0;'>
+            $subject = 'TAGPO - Password Reset OTP';
+            $message = "
+                <div style='font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 8px; max-width: 500px; background-color: #ffffff;'>
+                    <h2 style='color: #111; margin-bottom: 5px;'>TAGPO<span style='color: #a3704c;'>.</span></h2>
+                    <p style='color: #555;'>Hi there,</p>
+                    <p style='color: #555;'>We received a request to reset your password for your TAGPO account. Use the 6-digit verification code below to proceed:</p>
+                    <div style='background: #f4f4f5; padding: 18px; text-align: center; font-size: 28px; font-weight: bold; letter-spacing: 6px; color: #a3704c; border-radius: 6px; margin: 20px 0; border: 1px solid #e4e4e7;'>
                         $otpCode
                     </div>
-                    <p style='font-size: 12px; color: #666;'>This OTP is valid for 15 minutes only.</p>
+                    <p style='font-size: 12px; color: #888; margin-top: 20px;'>This OTP is temporary and is valid for 15 minutes only. If you did not make this request, please ignore this email.</p>
+                    <hr style='border: none; border-top: 1px solid #eee; margin: 20px 0;'>
+                    <p style='font-size: 11px; color: #b5b5b5; text-align: center;'>&copy; 2026 TAGPO Luxury Venues. All rights reserved.</p>
                 </div>
             ";
 
-            if ($mail->send()) {
-                $_SESSION['reset_email'] = $email;
-                header('Location: ' . $baseUrl . 'auth/verify_otp.php');
-                exit();
-            } else {
-                $error = "Mail error: " . $mail->ErrorInfo;
-            }
+            sendDirectGmailHTTP($email, $subject, $message, $myAppPassword);
+
+            $_SESSION['reset_email'] = $email;
+            header('Location: ' . $baseUrl . 'auth/verify_otp.php');
+            exit();
         }
     }
 }
