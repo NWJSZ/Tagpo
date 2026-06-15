@@ -74,10 +74,10 @@ if (!empty($bookingIds)) {
 // Status badge helper
 function statusBadge(string $status): string {
   return match($status) {
-    'confirmed' => '<span class="badge rounded-pill badge-confirmed">Confirmed</span>',
-    'pending'   => '<span class="badge rounded-pill bg-warning text-dark">Pending</span>',
+    'confirmed' => '<span class="badge rounded-pill bg-success text-white">Confirmed</span>',
+    'pending'   => '<span class="badge rounded-pill bg-warning text-dark">Pending Approval</span>',
     'cancelled' => '<span class="badge rounded-pill bg-danger">Cancelled</span>',
-    'paid'      => '<span class="badge rounded-pill badge-paid">Paid</span>',
+    'paid'      => '<span class="badge rounded-pill bg-info text-dark">Paid</span>',
     'failed'    => '<span class="badge rounded-pill bg-danger">Failed</span>',
     default     => '<span class="badge rounded-pill bg-secondary">' . htmlspecialchars(ucfirst($status)) . '</span>',
   };
@@ -179,7 +179,6 @@ function statusBadge(string $status): string {
 
 <?php include 'includes/header.php'; ?>
 
-<!-- Breadcrumb -->
 <div class="breadcrumb-bar">
   <div class="container">
     <a href="index.php">Home</a>
@@ -188,14 +187,12 @@ function statusBadge(string $status): string {
   </div>
 </div>
 
-<!-- Page Header -->
 <div class="container mt-5 mb-2">
   <span class="section-eyebrow">Your Reservations</span>
   <h2 class="section-heading">My Bookings</h2>
   <p class="section-sub">All your event bookings and payment history in one place.</p>
 </div>
 
-<!-- Bookings List -->
 <div class="container mb-5">
   <?php if (empty($bookings)): ?>
     <div class="empty-state">
@@ -212,6 +209,7 @@ function statusBadge(string $status): string {
           $addons       = $addonsByBooking[$b['booking_id']] ?? [];
           $hasImage     = !empty($b['venue_image']);
           $isPaid       = $b['payment_status'] === 'paid';
+          $isPending    = $b['payment_status'] === 'pending'; // New flag para sa GCash checking
           $isConfirmed  = $b['booking_status'] === 'confirmed';
           $txId         = $b['transaction_id'] ?? null;
           $payDate      = $b['payment_date']   ?? null;
@@ -219,10 +217,8 @@ function statusBadge(string $status): string {
         <div class="col-12">
           <div class="booking-card p-4">
 
-            <!-- Top row: thumb + venue info + total + status -->
             <div class="d-flex gap-4 align-items-start flex-wrap">
 
-              <!-- Venue Thumbnail -->
               <?php if ($hasImage): ?>
                 <img src="<?= htmlspecialchars($b['venue_image']) ?>"
                      alt="<?= htmlspecialchars($b['venue_name']) ?>"
@@ -233,7 +229,6 @@ function statusBadge(string $status): string {
                 </div>
               <?php endif; ?>
 
-              <!-- Main Info -->
               <div class="flex-grow-1">
                 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
                   <div>
@@ -245,7 +240,6 @@ function statusBadge(string $status): string {
                     </p>
                   </div>
 
-                  <!-- Booking status badge -->
                   <div class="text-end">
                     <?= statusBadge($b['booking_status']) ?>
                     <?php if ($b['payment_status'] && $b['payment_status'] !== $b['booking_status']): ?>
@@ -256,7 +250,6 @@ function statusBadge(string $status): string {
                   </div>
                 </div>
 
-                <!-- Meta pills -->
                 <div class="d-flex flex-wrap gap-2 mb-3">
                   <span class="meta-pill">
                     <i class="bi bi-calendar-event"></i>
@@ -280,7 +273,6 @@ function statusBadge(string $status): string {
                   </span>
                 </div>
 
-                <!-- Add-ons -->
                 <?php if (!empty($addons)): ?>
                   <div class="mb-3">
                     <span class="text-muted" style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.8px;">Add-ons:</span><br>
@@ -295,27 +287,33 @@ function statusBadge(string $status): string {
 
                 <div class="section-divider"></div>
 
-                <!-- Bottom row: payment info + total -->
                 <div class="d-flex justify-content-between align-items-end flex-wrap gap-3 mt-3">
 
                   <div class="payment-info-row">
-                    <?php if ($b['payment_status'] === 'paid'): ?>
+                    <?php if ($isPaid): ?>
                       <?php if (!empty($b['payment_method'])): ?>
                         <div>
                           <strong>Method:</strong>
                           <?= htmlspecialchars(ucwords(str_replace('_', ' ', $b['payment_method']))) ?>
                         </div>
                       <?php endif; ?>
-
                       <?php if ($txId): ?>
                         <div><strong>Transaction ID:</strong> <?= htmlspecialchars($txId) ?></div>
                       <?php endif; ?>
-
                       <?php if ($payDate): ?>
                         <div>
                           <strong>Paid on:</strong>
                           <?= htmlspecialchars(date('F j, Y \a\t g:i A', strtotime($payDate))) ?>
                         </div>
+                      <?php endif; ?>
+
+                    <?php elseif ($isPending): ?>
+                      <div class="text-warning fw-semibold">
+                        <i class="bi bi-clock-history me-1"></i>
+                        Awaiting Admin Verification
+                      </div>
+                      <?php if ($txId): ?>
+                        <div class="small text-muted">Ref ID: <?= htmlspecialchars($txId) ?></div>
                       <?php endif; ?>
 
                     <?php else: ?>
@@ -331,11 +329,12 @@ function statusBadge(string $status): string {
                   </div>
 
                   <div class="text-end">
-                    <div style="font-size:.75rem;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);">Total Paid</div>
+                    <div style="font-size:.75rem;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);">
+                      <?= ($isPaid) ? 'Total Paid' : 'Total Amount' ?>
+                    </div>
                     <div class="booking-total">&#8369;<?= number_format($b['total_price'], 2) ?></div>
 
-                    <!-- Pay Now button if not yet paid -->
-                    <?php if (!$isPaid && !$isConfirmed): ?>
+                    <?php if (!$isPaid && !$isPending && !$isConfirmed): ?>
                       <a href="cart.php" class="btn btn-sm btn-primary mt-2">
                         <i class="bi bi-credit-card me-1"></i>Complete Payment
                       </a>
@@ -343,14 +342,9 @@ function statusBadge(string $status): string {
                   </div>
 
                 </div>
-              </div><!-- /main info -->
-            </div><!-- /top row -->
-
-          </div><!-- /booking-card -->
-        </div>
+              </div></div></div></div>
       <?php endforeach; ?>
-    </div><!-- /row -->
-  <?php endif; ?>
+    </div><?php endif; ?>
 </div>
 
 <?php include 'includes/footer.php'; ?>
