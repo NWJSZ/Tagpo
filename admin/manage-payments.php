@@ -178,6 +178,7 @@ $stmt->close();
         <form method="get" class="search-box" style="flex:1;">
           <i class="bi bi-search"></i>
           <input type="text" name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Search by transaction ID, name, or email...">
+          <button type="submit" style="display:none;"></button>
         </form>
         <form method="get" class="d-flex gap-8">
           <?php if ($search !== ''): ?><input type="hidden" name="q" value="<?= htmlspecialchars($search) ?>"><?php endif; ?>

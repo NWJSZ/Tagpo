@@ -177,6 +177,7 @@ function statusBadgeClass(string $status): string {
         <form method="get" class="search-box" style="flex:1;">
           <i class="bi bi-search"></i>
           <input type="text" name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Search by name, email, or phone number...">
+          <button type="submit" style="display:none;"></button>
         </form>
       </div>
 

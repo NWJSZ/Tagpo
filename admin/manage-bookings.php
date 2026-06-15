@@ -105,10 +105,35 @@ $params = [];
 $types  = '';
 
 if ($search !== '') {
-    $sql .= " AND (u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ? OR v.name LIKE ?)";
-    $like = '%' . $search . '%';
-    array_push($params, $like, $like, $like, $like);
-    $types .= 'ssss';
+    // If search looks like a reference code (starts with TGP-), search by ref code
+    if (stripos($search, 'TGP-') === 0) {
+        // Get all booking IDs and find matching reference codes
+        $allBookings = $conn->query("SELECT booking_id FROM bookings")->fetch_all(MYSQLI_ASSOC);
+        $matchingIds = [];
+        
+        foreach ($allBookings as $b) {
+            $refCode = refCode($b['booking_id']);
+            if (stripos($refCode, $search) !== false) {
+                $matchingIds[] = $b['booking_id'];
+            }
+        }
+        
+        if (!empty($matchingIds)) {
+            $placeholders = implode(',', array_fill(0, count($matchingIds), '?'));
+            $sql .= " AND b.booking_id IN ($placeholders)";
+            $types .= str_repeat('i', count($matchingIds));
+            $params = array_merge($params, $matchingIds);
+        } else {
+            // No matching reference codes, return empty results
+            $sql .= " AND 0=1";
+        }
+    } else {
+        // Regular search by booking ID, name, email, venue
+        $sql .= " AND (CAST(b.booking_id AS CHAR) LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ? OR v.name LIKE ?)";
+        $like = '%' . $search . '%';
+        array_push($params, $like, $like, $like, $like, $like);
+        $types .= 'sssss';
+    }
 }
 if ($statusFilter !== '') {
     $sql .= " AND b.status = ?";
@@ -329,6 +354,7 @@ $calHours = range(8, 20); // 8 AM - 8 PM
             <input type="hidden" name="view" value="table">
             <i class="bi bi-search"></i>
             <input type="text" name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Search by reference, user, or venue...">
+            <button type="submit" style="display:none;"></button>
           </form>
           <form method="get" class="d-flex gap-8">
             <input type="hidden" name="view" value="table">

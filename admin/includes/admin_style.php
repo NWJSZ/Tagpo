@@ -736,3 +736,21 @@ body {
 .mb-3 { margin-bottom: 16px; }
 .mt-1 { margin-top: 4px; }
 </style>
+
+<script>
+  // Enable search form submission on Enter key
+  document.addEventListener('DOMContentLoaded', function() {
+    const searchForms = document.querySelectorAll('.search-box');
+    searchForms.forEach(form => {
+      const input = form.querySelector('input[type="text"]');
+      if (input) {
+        input.addEventListener('keypress', function(e) {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            form.submit();
+          }
+        });
+      }
+    });
+  });
+</script>

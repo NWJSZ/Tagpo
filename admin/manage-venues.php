@@ -227,7 +227,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 /* ── Fetch venues + amenities + gallery + booking counts ─────────── */
 $showArchived = isset($_GET['show_archived']) && $_GET['show_archived'] === '1';
 $archivedFilter = $showArchived ? '1' : '0';
-$venues = $conn->query("SELECT * FROM venues WHERE archived = $archivedFilter ORDER BY id DESC")->fetch_all(MYSQLI_ASSOC);
+$search = trim($_GET['q'] ?? '');
+
+// Build query with optional search filter
+$sql = "SELECT * FROM venues WHERE archived = $archivedFilter";
+$params = [];
+$types  = '';
+
+if ($search !== '') {
+    $sql .= " AND (name LIKE ? OR location LIKE ? OR description LIKE ?)";
+    $like = '%' . $search . '%';
+    $params = [$like, $like, $like];
+    $types  = 'sss';
+}
+
+$sql .= " ORDER BY id DESC";
+
+$stmt = $conn->prepare($sql);
+if ($types !== '') {
+    $stmt->bind_param($types, ...$params);
+}
+$stmt->execute();
+$venues = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$stmt->close();
 
 $venueIds = array_column($venues, 'id');
 $amenitiesByVenue     = [];
@@ -360,6 +382,17 @@ $avgPrice      = $totalVenues > 0 ? array_sum(array_column($venues, 'price')) / 
     <div class="panel-card">
       <div class="panel-card-header">
         <h2>All Venues</h2>
+      </div>
+
+      <div class="filter-toolbar">
+        <form method="get" class="search-box" style="flex:1;">
+          <i class="bi bi-search"></i>
+          <input type="text" name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Search by name, location, or description...">
+          <button type="submit" style="display:none;"></button>
+        </form>
+        <a href="?show_archived=<?= $showArchived ? '0' : '1' ?>" class="btn-action btn-outline-gray">
+          <?= $showArchived ? '← Show Active' : 'Show Archived →' ?>
+        </a>
       </div>
 
       <?php if (empty($venues)): ?>
