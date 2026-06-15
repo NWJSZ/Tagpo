@@ -183,6 +183,37 @@ body {
   color: rgba(255, 255, 255, .7);
 }
 
+/* Hide native browser password reveal controls so only the app toggle is visible */
+input[type="password"] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+.auth-panel-right input[type="password"]::-ms-reveal,
+.auth-panel-right input[type="password"]::-ms-clear,
+.auth-panel-right input[type="password"]::-webkit-password-reveal-button,
+.auth-panel-right input[type="password"]::-webkit-credentials-auto-fill-button,
+.auth-panel-right input[type="password"]::-webkit-textfield-decoration-button,
+.auth-panel-right input[type="password"]::-webkit-textfield-decoration-container,
+.auth-panel-right input[type="password"]::-webkit-textfield-decoration-inner,
+.auth-panel-right input[type="password"]::-webkit-clear-button,
+.auth-panel-right input[type="password"]::-webkit-inner-spin-button,
+.auth-panel-right input[type="password"]::-webkit-outer-spin-button,
+.auth-panel-right input[type="password"]::-webkit-datetime-edit-text,
+.auth-panel-right input[type="password"]::-webkit-datetime-edit-fields-wrapper,
+.auth-panel-right input[type="password"]::-webkit-datetime-edit,
+.auth-panel-right input[type="password"]::-moz-focus-inner {
+  display: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  height: 0 !important;
+  opacity: 0 !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  pointer-events: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
 /* Submit button */
 .btn-auth-submit {
   background: var(--accent);

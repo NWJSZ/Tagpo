@@ -122,9 +122,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <div class="input-group">
             <span class="input-group-text"><i class="fa-solid fa-lock"></i></span>
             <input type="password" name="password" id="pw-login" class="form-control" placeholder="Password" required>
-            <button type="button" class="input-group-text auth-password-toggle" onclick="togglePwd('pw-login',this)">
+            <!-- FIXED: eye icon as clickable span -->
+            <span class="input-group-text auth-password-toggle" onclick="togglePwd('pw-login',this)">
               <i class="fa-regular fa-eye"></i>
-            </button>
+            </span>
           </div>
           <div class="text-end mt-1">
             <a href="forgot_password.php" style="font-size: 0.82rem; color: #a3704c; text-decoration: none;">Forgot Password?</a>
