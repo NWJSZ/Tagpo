@@ -122,8 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <div class="input-group">
             <span class="input-group-text"><i class="fa-solid fa-lock"></i></span>
             <input type="password" name="password" id="pw-login" class="form-control" placeholder="Password" required>
-            <!-- FIXED: eye icon as clickable span -->
-            <span class="input-group-text auth-password-toggle" onclick="togglePwd('pw-login',this)">
+            <span class="input-group-text auth-password-toggle" onclick="togglePwd('pw-login', this)" style="cursor: pointer;">
               <i class="fa-regular fa-eye"></i>
             </span>
           </div>

@@ -354,3 +354,11 @@ input[type="password"] {
     padding: 32px 20px;
   }
 }
+input::-ms-reveal,
+input::-ms-clear {
+    display: none !important;
+}
+
+input::-webkit-credentials-autosave-button {
+    display: none !important;
+}

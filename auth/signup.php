@@ -169,25 +169,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     </div>
 
                     <div class="mb-3">
-                        <label class="auth-label">Password</label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="fa-solid fa-lock"></i></span>
-                            <input type="password" name="password" id="pw-signup" class="form-control" placeholder="Min. 6 characters" required>
-                            <button type="button" class="input-group-text auth-password-toggle" onclick="togglePwd('pw-signup', this)">
-                                <i class="fa-regular fa-eye"></i>
-                            </button>
-                        </div>
+                    <label class="auth-label">Password</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fa-solid fa-lock"></i></span>
+                        <input type="password" name="password" id="pw-signup" class="form-control" placeholder="Password" required>
+                        <span class="input-group-text auth-password-toggle" onclick="togglePwd('pw-signup', this)" style="cursor: pointer;">
+                        <i class="fa-regular fa-eye"></i>
+                        </span>
+                    </div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="auth-label">Confirm Password</label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="fa-solid fa-lock"></i></span>
-                            <input type="password" name="confirm_password" id="pw-confirm" class="form-control" placeholder="Repeat password" required>
-                            <button type="button" class="input-group-text auth-password-toggle" onclick="togglePwd('pw-confirm', this)">
-                                <i class="fa-regular fa-eye"></i>
-                            </button>
-                        </div>
+                    <label class="auth-label">Confirm Password</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fa-solid fa-lock"></i></span>
+                        <input type="password" name="confirm_password" id="pw-confirm" class="form-control" placeholder="Repeat password" required>
+                        <span class="input-group-text auth-password-toggle" onclick="togglePwd('pw-confirm', this)" style="cursor: pointer;">
+                        <i class="fa-regular fa-eye"></i>
+                        </span>
+                    </div>
                     </div>
 
                     <button type="submit" id="submit-btn" class="btn-auth-submit">
