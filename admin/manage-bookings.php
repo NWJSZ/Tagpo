@@ -34,6 +34,8 @@ function statusBadgeClass(string $status): string {
 
 /* ── Handle drawer actions (Approve / Reject / Confirm) ─────────── */
 $flash = null;
+
+// AJAX: Handle add event request
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['booking_id'])) {
     $bookingId = (int) $_POST['booking_id'];
     $action    = $_POST['action'];
@@ -167,6 +169,9 @@ if (!empty($bookingIds)) {
     }
     $stmt->close();
 }
+
+/* ── Fetch all available events ──────────────────────────────── */
+$allEvents = $conn->query("SELECT event_id, event_name FROM event WHERE archived = 0 ORDER BY event_name")->fetch_all(MYSQLI_ASSOC);
 
 /* ── Calendar data (current week, navigable) ──────────────────── */
 $weekOffset = isset($_GET['week']) ? (int) $_GET['week'] : 0;
@@ -501,6 +506,7 @@ $calHours = range(8, 20); // 8 AM - 8 PM
     </div>
   </div>
 
+  <!-- Event Creation Modal -->
   <div class="drawer-footer">
     <form method="post" id="drawerForm">
       <input type="hidden" name="booking_id" id="formBookingId">
@@ -523,10 +529,12 @@ function closeDrawer() {
   document.getElementById('bookingDrawer').classList.remove('open');
   document.getElementById('drawerOverlay').classList.remove('open');
 }
+
 function submitAction(action) {
   document.getElementById('formAction').value = action;
   document.getElementById('drawerForm').submit();
 }
+
 function openDrawer(row) {
   const d = row.dataset;
   document.getElementById('drawerRef').textContent     = d.ref;

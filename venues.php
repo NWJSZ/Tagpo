@@ -289,14 +289,20 @@ function stars(float $rating): string
 
         <div class="section" id="amenities">
           <div class="section-title">Amenities &amp; Features</div>
-          <div class="amenities-grid">
-            <?php foreach ($selected['amenities'] as $a): ?>
-              <div class="amenity-item">
-                <span><?php echo $a['icon']; ?></span>
-                <?php echo htmlspecialchars($a['label']); ?>
-              </div>
-            <?php endforeach; ?>
-          </div>
+          <?php
+            $amenityLabels = [];
+            foreach ($selected['amenities'] as $a) {
+              $label = $a['label'] ?? $a['name'] ?? $a['amenity_name'] ?? '';
+              if (!empty($label)) {
+                $amenityLabels[] = trim($label);
+              }
+            }
+          ?>
+          <?php if (!empty($amenityLabels)): ?>
+            <p class="amenities-text"><?php echo htmlspecialchars(implode(', ', $amenityLabels)); ?></p>
+          <?php else: ?>
+            <p class="text-muted">No amenities listed for this venue.</p>
+          <?php endif; ?>
         </div>
 
         <div class="section" id="location">

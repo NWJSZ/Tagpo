@@ -18,7 +18,7 @@ $userId = (int) $currentUser['id'];
 $venueId      = filter_input(INPUT_POST, 'venue_id',    FILTER_VALIDATE_INT);
 $venueName    = trim($_POST['venue_name']  ?? '');
 $venuePrice   = filter_input(INPUT_POST, 'venue_price', FILTER_VALIDATE_FLOAT);
-$eventType    = trim($_POST['event_id']  ?? '');
+$eventInput   = trim($_POST['event_id']  ?? '');
 $eventDate    = trim($_POST['event_date']  ?? '');
 $eventTimeRaw = trim($_POST['event_time']  ?? '');
 $eventTime    = !empty($eventTimeRaw) ? date('H:i:s', strtotime($eventTimeRaw)) : '';
@@ -26,7 +26,7 @@ $durationRaw  = trim($_POST['duration']    ?? '');
 $guestCount   = filter_input(INPUT_POST, 'guests',      FILTER_VALIDATE_INT);
 $addons       = is_array($_POST['addons'] ?? null) ? $_POST['addons'] : [];
 
-if (!$venueId || !$venuePrice || empty($eventType) || empty($eventDate) ||
+if (!$venueId || !$venuePrice || empty($eventInput) || empty($eventDate) ||
     empty($eventTime) || $guestCount < 1) {
     die('Invalid booking data. Please go back and fill in all required fields.');
 }
@@ -35,24 +35,49 @@ if (!$venueId || !$venuePrice || empty($eventType) || empty($eventDate) ||
 $durationHours = (int) filter_var($durationRaw, FILTER_SANITIZE_NUMBER_INT);
 if ($durationHours < 1) $durationHours = 4;
 
-// ── Resolve event_id from event_name ────────────────────────────────────────
-$eventNameMap = [
-    'Wedding'            => 'Wedding',
-    'Birthday / Debut'   => 'Birthday / Debut',
-    'Prom / Ball'        => 'Prom / Ball',
-    'Corporate Event'    => 'Corporate Event',
-    'Reunion'            => 'Reunion',
-    'Anniversary'        => 'Anniversary',
-];
-$dbEventName = $eventNameMap[$eventType] ?? $eventType;
+$eventId = null;
+$eventName = null;
 
-$stmt = $conn->prepare("SELECT event_id FROM event WHERE event_name = ? AND archived = 0 LIMIT 1");
-$stmt->bind_param('s', $dbEventName);
-$stmt->execute();
-$eventRow = $stmt->get_result()->fetch_assoc();
-$stmt->close();
+if (ctype_digit($eventInput)) {
+    $maybeId = (int) $eventInput;
+    $stmt = $conn->prepare("SELECT event_name FROM event WHERE event_id = ? AND archived = 0 LIMIT 1");
+    $stmt->bind_param('i', $maybeId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    if ($row) {
+        $eventId = $maybeId;
+        $eventName = $row['event_name'];
+    }
+}
 
-$eventId = $eventRow ? (int) $eventRow['event_id'] : 1;
+if ($eventId === null) {
+    // Support legacy string values for event names
+    $eventNameMap = [
+        'Wedding'            => 'Wedding',
+        'Birthday / Debut'   => 'Birthday / Debut',
+        'Prom / Ball'        => 'Prom / Ball',
+        'Corporate Event'    => 'Corporate Event',
+        'Reunion'            => 'Reunion',
+        'Anniversary'        => 'Anniversary',
+    ];
+    $dbEventName = $eventNameMap[$eventInput] ?? $eventInput;
+
+    $stmt = $conn->prepare("SELECT event_id, event_name FROM event WHERE event_name = ? AND archived = 0 LIMIT 1");
+    $stmt->bind_param('s', $dbEventName);
+    $stmt->execute();
+    $eventRow = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    if ($eventRow) {
+        $eventId = (int) $eventRow['event_id'];
+        $eventName = $eventRow['event_name'];
+    }
+}
+
+if ($eventId === null) {
+    die('Invalid event type selected. Please choose a valid event type.');
+}
 
 // ── Resolve addon prices from DB ─────────────────────────────────────────────
 $addonPriceMap = [];

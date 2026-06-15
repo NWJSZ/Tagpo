@@ -281,8 +281,7 @@ footer .footer-bottom { font-size: 0.8rem; color: #64748b; padding-bottom: 28px;
 .section p { font-size: .92rem; color: #4b5563; line-height: 1.75; }
 
 /* AMENITIES */
-.amenities-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-.amenity-item { display: flex; align-items: center; gap: 10px; font-size: .88rem; color: #374151; padding: 10px 14px; background: #fff; border: 1px solid var(--border); border-radius: 8px; }
+.amenities-text { font-size: .92rem; color: #374151; line-height: 1.7; margin: 0; padding: 0; }
 
 /* MAP */
 .map-placeholder { background: linear-gradient(135deg, #e8e0d4 0%, #d4c9b6 100%); border-radius: var(--radius); height: 200px; display: flex; align-items: center; justify-content: center; color: #8a7a68; font-size: .9rem; border: 1px solid var(--border); position: relative; overflow: hidden; }

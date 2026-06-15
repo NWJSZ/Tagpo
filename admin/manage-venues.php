@@ -15,6 +15,53 @@ if (!isAdmin()) {
 $currentUser = getCurrentUser();
 $currentPage = 'venues';
 
+// AJAX: Add a new event type from the venue drawer
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'add_event') {
+    $eventName = trim($_POST['event_name'] ?? '');
+    $venueId   = isset($_POST['venue_id']) ? (int) $_POST['venue_id'] : 0;
+    header('Content-Type: application/json');
+    if ($eventName === '') {
+        echo json_encode(['success' => false, 'error' => 'Event name cannot be empty.']);
+        exit();
+    }
+
+    $stmt = $conn->prepare("SELECT event_id FROM event WHERE event_name = ? AND archived = 0 LIMIT 1");
+    $stmt->bind_param('s', $eventName);
+    $stmt->execute();
+    $existing = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    if ($existing) {
+        $eventId = (int) $existing['event_id'];
+        if ($venueId > 0) {
+            $assign = $conn->prepare("INSERT IGNORE INTO venue_events (venue_id, event_id) VALUES (?,?)");
+            $assign->bind_param('ii', $venueId, $eventId);
+            $assign->execute();
+            $assign->close();
+        }
+        echo json_encode(['success' => true, 'event_id' => $eventId, 'event_name' => $eventName, 'existing' => true]);
+        exit();
+    }
+
+    $stmt = $conn->prepare("INSERT INTO event (event_name) VALUES (?)");
+    $stmt->bind_param('s', $eventName);
+    if ($stmt->execute()) {
+        $eventId = $conn->insert_id;
+        $stmt->close();
+        if ($venueId > 0) {
+            $assign = $conn->prepare("INSERT IGNORE INTO venue_events (venue_id, event_id) VALUES (?,?)");
+            $assign->bind_param('ii', $venueId, $eventId);
+            $assign->execute();
+            $assign->close();
+        }
+        echo json_encode(['success' => true, 'event_id' => $eventId, 'event_name' => $eventName, 'existing' => false]);
+        exit();
+    }
+    $stmt->close();
+    echo json_encode(['success' => false, 'error' => 'Unable to create event type.']);
+    exit();
+}
+
 $errors = [];
 $flash  = null;
 
@@ -220,9 +267,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 $ins->close();
             }
+
+            /* ── Sync venue event assignments ── */
+            $selectedEvents = array_filter(array_map('intval', $_POST['events'] ?? []));
+            $del = $conn->prepare("DELETE FROM venue_events WHERE venue_id = ?");
+            $del->bind_param('i', $id);
+            $del->execute();
+            $del->close();
+
+            if (!empty($selectedEvents)) {
+                $ins = $conn->prepare("INSERT INTO venue_events (venue_id, event_id) VALUES (?,?)");
+                foreach (array_unique($selectedEvents) as $eventId) {
+                    $ins->bind_param('ii', $id, $eventId);
+                    $ins->execute();
+                }
+                $ins->close();
+            }
         }
     }
 }
+
+/* ── Global event types for venue assignment ─────────────────────── */
+$allEvents = $conn->query("SELECT event_id, event_name FROM event WHERE archived = 0 ORDER BY event_name ASC")->fetch_all(MYSQLI_ASSOC);
 
 /* ── Fetch venues + amenities + gallery + booking counts ─────────── */
 $showArchived = isset($_GET['show_archived']) && $_GET['show_archived'] === '1';
@@ -282,6 +348,14 @@ if (!empty($venueIds)) {
     $stmt->execute();
     foreach ($stmt->get_result()->fetch_all(MYSQLI_ASSOC) as $row) {
         $highlightsByVenue[$row['venue_id']][] = $row['highlight'];
+    }
+    $stmt->close();
+
+    $stmt = $conn->prepare("SELECT venue_id, event_id FROM venue_events WHERE venue_id IN ($ph)");
+    $stmt->bind_param($types, ...$venueIds);
+    $stmt->execute();
+    foreach ($stmt->get_result()->fetch_all(MYSQLI_ASSOC) as $row) {
+        $venueEventsByVenue[$row['venue_id']][] = (int)$row['event_id'];
     }
     $stmt->close();
 
@@ -424,7 +498,16 @@ $avgPrice      = $totalVenues > 0 ? array_sum(array_column($venues, 'price')) / 
                 <td><?= (int)$v['capacity'] ?> guests</td>
                 <td>&#8369;<?= number_format($v['price'], 2) ?></td>
                 <td class="text-muted-sm">
-                  <?= !empty($amenitiesByVenue[$v['id']]) ? htmlspecialchars(implode(', ', $amenitiesByVenue[$v['id']])) : '—' ?>
+                  <?php if (!empty($amenitiesByVenue[$v['id']])):
+                    $labels = array_map(function ($amenity) {
+                      $parts = explode('|', $amenity, 2);
+                      return trim(end($parts));
+                    }, $amenitiesByVenue[$v['id']]);
+                  ?>
+                    <?= htmlspecialchars(implode(', ', $labels)) ?>
+                  <?php else: ?>
+                    —
+                  <?php endif; ?>
                 </td>
                 <td><?= $bookingCountByVenue[$v['id']] ?? 0 ?></td>
                 <td>
@@ -441,8 +524,7 @@ $avgPrice      = $totalVenues > 0 ? array_sum(array_column($venues, 'price')) / 
                         'image_url'   => $v['image_url'],
                         'amenities'   => $amenitiesByVenue[$v['id']]  ?? [],
                         'gallery'     => $galleryByVenue[$v['id']]    ?? [],
-                        'highlights'  => $highlightsByVenue[$v['id']] ?? [],
-                    ];
+                        'highlights'  => $highlightsByVenue[$v['id']] ?? [],                    'events'      => $venueEventsByVenue[$v['id']] ?? [],                    ];
                     ?>
                     <button class="icon-btn" title="Edit"
                       onclick='openVenueDrawer(<?= json_encode($editPayload, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>)'>
@@ -566,7 +648,30 @@ $avgPrice      = $totalVenues > 0 ? array_sum(array_column($venues, 'price')) / 
         <div class="text-muted-sm mt-1">Format: <code>icon|label</code> — enter them separately above.</div>
       </div>
 
-      <!-- Why This Venue highlights -->
+      <!-- Assigned event types -->
+      <div class="mb-3">
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:8px;">
+          <div style="flex:1;">
+            <label class="form-label-sm" style="margin:0;">Assigned Event Types</label>
+            <select id="eventTypePicker" class="form-ctrl" style="margin-top:8px;">
+              <option value="">Select event type...</option>
+              <?php foreach ($allEvents as $event): ?>
+                <option value="<?= (int)$event['event_id'] ?>"><?= htmlspecialchars($event['event_name']) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-end;">
+            <button type="button" onclick="openEventModal()" class="btn-action btn-outline-gray" style="white-space:nowrap;">+ New Event</button>
+            <button type="button" onclick="addSelectedEvent()" class="btn-action btn-primary-green" style="white-space:nowrap;">Add</button>
+          </div>
+        </div>
+        <div id="venueEventList" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;margin-bottom:6px;">
+          <div id="venueEventPlaceholder" style="color:#6b7280;font-size:13px;">No assigned event types yet.</div>
+        </div>
+        <div id="venueEventInputs"></div>
+        <div class="text-muted-sm">Click Add to assign event types. Use New Event to create a category that also appears in Manage Events.</div>
+      </div>
+
       <div class="mb-3">
         <label class="form-label-sm">Why This Venue (Highlights)</label>
         <div id="highlightList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
@@ -578,6 +683,18 @@ $avgPrice      = $totalVenues > 0 ? array_sum(array_column($venues, 'price')) / 
       </div>
 
     </div><!-- end .drawer-body -->
+
+    <!-- Event add modal -->
+    <div id="eventModal" class="venue-event-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:2100; align-items:center; justify-content:center;">
+      <div style="background:#fff; border-radius:16px; padding:24px; width:100%; max-width:420px; box-shadow:0 24px 40px rgba(0,0,0,0.18);">
+        <h3 style="margin:0 0 16px 0; font-size:18px; font-weight:600;">Add New Event Type</h3>
+        <input type="text" id="newEventName" class="form-ctrl" placeholder="Enter event type name..." style="width:100%; margin-bottom:16px;">
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+          <button type="button" class="btn-action btn-outline-gray" onclick="closeEventModal()" style="padding:8px 14px;">Cancel</button>
+          <button type="button" class="btn-action btn-full-green" onclick="addVenueEventType()" style="padding:8px 14px;">Add Event</button>
+        </div>
+      </div>
+    </div>
 
     <!-- ↓ Pinned footer — always visible -->
     <div class="drawer-footer">
@@ -599,7 +716,6 @@ function renderAmenityRow(icon, label) {
   const val = (icon + '|' + label).replace(/"/g, '&quot;');
   row.innerHTML = `
     <input type="hidden" name="amenities[]" value="${val}">
-    <span style="font-size:1.2em;min-width:28px;text-align:center;">${icon}</span>
     <span style="flex:1;font-size:13px;">${label}</span>
     <button type="button" onclick="this.closest('div').remove()"
       style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:1.1em;" title="Remove">✕</button>`;
@@ -610,7 +726,7 @@ function addAmenityRow() {
   const icon  = document.getElementById('amenityIcon').value.trim();
   const label = document.getElementById('amenityLabel').value.trim();
   if (!label) return;
-  renderAmenityRow(icon || '📌', label);
+  renderAmenityRow(icon || '', label);
   document.getElementById('amenityIcon').value  = '';
   document.getElementById('amenityLabel').value = '';
 }
@@ -618,6 +734,57 @@ function addAmenityRow() {
 /* ══════════════════════════════════════════════════════════════
    HIGHLIGHT HELPERS
    ══════════════════════════════════════════════════════════════ */
+function updateEventTypePlaceholder() {
+  const list = document.getElementById('venueEventList');
+  const placeholder = document.getElementById('venueEventPlaceholder');
+  const chips = list.querySelectorAll('div[data-event-chip]');
+  if (!placeholder) return;
+  placeholder.style.display = chips.length === 0 ? 'block' : 'none';
+}
+
+function renderEventTypeChip(id, name) {
+  const list = document.getElementById('venueEventList');
+  const chip = document.createElement('div');
+  chip.dataset.eventChip = 'true';
+  chip.style.cssText = 'display:flex;align-items:center;gap:6px;background:#eef6ef;border:1px solid #d1e7d6;border-radius:999px;padding:6px 10px;font-size:13px;color:#0f5132;';
+  chip.innerHTML = `
+    <input type="hidden" name="events[]" value="${id}">
+    <span>${name}</span>
+    <button type="button" onclick="removeEventTypeChip(this)" style="background:none;border:none;color:#dc2626;font-size:16px;cursor:pointer;">✕</button>`;
+  list.appendChild(chip);
+  updateEventTypePlaceholder();
+}
+
+function removeEventTypeChip(button) {
+  const chip = button.closest('div[data-event-chip]');
+  if (chip) {
+    chip.remove();
+    updateEventTypePlaceholder();
+  }
+}
+
+function clearEventTypeChips() {
+  const list = document.getElementById('venueEventList');
+  list.innerHTML = '<div id="venueEventPlaceholder" style="color:#6b7280;font-size:13px;">No assigned event types yet.</div>';
+}
+
+function addSelectedEvent() {
+  const picker = document.getElementById('eventTypePicker');
+  const eventId = picker.value;
+  const eventName = picker.options[picker.selectedIndex]?.text || '';
+  if (!eventId) {
+    alert('Please select an event type.');
+    return;
+  }
+  const existingInputs = Array.from(document.querySelectorAll('#venueEventList input[name="events[]"]'));
+  if (existingInputs.some(input => input.value === eventId)) {
+    alert('This event type is already assigned.');
+    return;
+  }
+  renderEventTypeChip(eventId, eventName);
+  picker.value = '';
+}
+
 function renderHighlightRow(text) {
   const list = document.getElementById('highlightList');
   const row  = document.createElement('div');
@@ -739,6 +906,66 @@ document.getElementById('venueCoverInput').addEventListener('change', function()
 /* ══════════════════════════════════════════════════════════════
    DRAWER OPEN / CLOSE
    ══════════════════════════════════════════════════════════════ */
+function openEventModal() {
+  document.getElementById('eventModal').style.display = 'flex';
+  document.getElementById('newEventName').value = '';
+  document.getElementById('newEventName').focus();
+}
+
+function closeEventModal() {
+  document.getElementById('eventModal').style.display = 'none';
+  document.getElementById('newEventName').value = '';
+}
+
+function addVenueEventType() {
+  const eventName = document.getElementById('newEventName').value.trim();
+  if (eventName === '') {
+    alert('Please enter an event name.');
+    return;
+  }
+
+  const venueId = document.getElementById('venueId')?.value || 0;
+  const formData = new FormData();
+  formData.append('ajax_action', 'add_event');
+  formData.append('event_name', eventName);
+  formData.append('venue_id', venueId);
+
+  fetch('manage-venues.php', {
+    method: 'POST',
+    body: formData
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      const picker = document.getElementById('eventTypePicker');
+      if (picker) {
+        let option = picker.querySelector('option[value="' + data.event_id + '"]');
+        if (!option) {
+          option = document.createElement('option');
+          option.value = data.event_id;
+          option.textContent = data.event_name;
+          picker.appendChild(option);
+        }
+
+        const alreadyAssigned = Array.from(document.querySelectorAll('#venueEventList input[name="events[]"]'))
+          .some(input => input.value === String(data.event_id));
+
+        if (!alreadyAssigned) {
+          renderEventTypeChip(String(data.event_id), data.event_name);
+        }
+      }
+      closeEventModal();
+      alert('Event type "' + data.event_name + '" added successfully.');
+    } else {
+      alert('Error: ' + (data.error || 'Unable to save event type.'));
+    }
+  })
+  .catch(error => {
+    console.error(error);
+    alert('Unable to add event type. Please try again.');
+  });
+}
+
 function openVenueDrawer(venue) {
   const preview      = document.getElementById('venueImagePreview');
   const amenityList  = document.getElementById('amenityList');
@@ -778,9 +1005,22 @@ function openVenueDrawer(venue) {
         const parts = a.split('|');
         renderAmenityRow(parts[0].trim(), parts.slice(1).join('|').trim());
       } else {
-        renderAmenityRow('📌', a);
+        renderAmenityRow('', a);
       }
     });
+
+    // Event type assignments
+    const eventTypePicker = document.getElementById('eventTypePicker');
+    clearEventTypeChips();
+    if (venue.events && Array.isArray(venue.events)) {
+      venue.events.forEach(function(eventId) {
+        const option = Array.from(eventTypePicker.options).find(opt => opt.value === String(eventId));
+        if (option) {
+          renderEventTypeChip(option.value, option.textContent.trim());
+        }
+      });
+    }
+    updateEventTypePlaceholder();
 
     // Highlights
     (venue.highlights || []).forEach(function(h) { renderHighlightRow(h); });

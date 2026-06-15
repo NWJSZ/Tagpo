@@ -103,6 +103,30 @@ if ($selected) {
   }
 }
 
+$venueEventOptions = [];
+if ($selected) {
+  $venueId = (int) $selected['id'];
+  $stmt = $conn->prepare(
+    "SELECT e.event_id, e.event_name
+     FROM venue_events ve
+     JOIN event e ON ve.event_id = e.event_id
+     WHERE ve.venue_id = ?
+       AND e.archived = 0
+     ORDER BY e.event_name ASC"
+  );
+  $stmt->bind_param('i', $venueId);
+  $stmt->execute();
+  $result = $stmt->get_result();
+  while ($row = $result->fetch_assoc()) {
+    $venueEventOptions[] = $row;
+  }
+  $stmt->close();
+
+  if (empty($venueEventOptions)) {
+    $venueEventOptions = $conn->query("SELECT event_id, event_name FROM event WHERE archived = 0 ORDER BY event_name ASC")->fetch_all(MYSQLI_ASSOC);
+  }
+}
+
 function stars(float $rating): string
 {
   $full  = (int) floor($rating);
@@ -297,7 +321,6 @@ function stars(float $rating): string
                   $label = isset($parts[1]) ? trim($parts[1]) : trim($parts[0]);
             ?>
                   <div class="amenity-item">
-                    <span><?php echo $icon; ?></span>
                     <?php echo htmlspecialchars($label); ?>
                   </div>
             <?php 
@@ -418,12 +441,9 @@ function stars(float $rating): string
               <label>Event Type</label>
               <select class="form-control" name="event_id" required>
                 <option value="">Search Event Type</option>
-                <option value="Wedding">Wedding</option>
-                <option value="Birthday / Debut">Birthday / Debut</option>
-                <option value="Prom / Ball">Prom / Ball</option>
-                <option value="Corporate Event">Corporate Event</option>
-                <option value="Reunion">Reunion</option>
-                <option value="Anniversary">Anniversary</option>
+                <?php foreach ($venueEventOptions as $evt): ?>
+                  <option value="<?= (int)$evt['event_id'] ?>"><?= htmlspecialchars($evt['event_name']) ?></option>
+                <?php endforeach; ?>
               </select>
             </div>
 
@@ -708,14 +728,14 @@ function stars(float $rating): string
 
       if (eventSelect) {
         eventSelect.addEventListener('change', function() {
-          const selectedEvent = this.value;
+          const selectedEventName = this.selectedOptions[0]?.textContent || '';
           let countVisible = 0;
 
           addonItems.forEach(item => {
             const checkbox = item.querySelector('input[type="checkbox"]');
             if (checkbox) checkbox.checked = false;
 
-            if (item.getAttribute('data-event') === selectedEvent) {
+            if (item.getAttribute('data-event') === selectedEventName) {
               item.style.display = 'block';
               countVisible++;
             } else {
