@@ -143,6 +143,34 @@ function isAdmin() {
 // HELPER FUNCTION: Get cart count
 // ========================================
 function getCartCount() {
-    return isset($_SESSION['cart']) ? count($_SESSION['cart']) : 0;
+    if (isset($_SESSION['cart']) && is_array($_SESSION['cart'])) {
+        $sessionCount = count($_SESSION['cart']);
+        if ($sessionCount > 0) {
+            return $sessionCount;
+        }
+    }
+
+    if (isset($_SESSION['current_user']) && isset($GLOBALS['conn']) && $GLOBALS['conn'] instanceof mysqli) {
+        $conn = $GLOBALS['conn'];
+        $userId = (int) $_SESSION['current_user']['id'];
+
+        $stmt = $conn->prepare(
+            "SELECT COUNT(b.booking_id) AS total
+             FROM bookings b
+             JOIN carts c ON b.cart_id = c.cart_id
+             WHERE c.user_id = ? AND c.status = 'active' AND b.status = 'pending'"
+        );
+
+        if ($stmt) {
+            $stmt->bind_param('i', $userId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $row = $result ? $result->fetch_assoc() : null;
+            $stmt->close();
+            return (int) ($row['total'] ?? 0);
+        }
+    }
+
+    return 0;
 }
 ?>
