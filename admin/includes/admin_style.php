@@ -614,7 +614,7 @@ body {
 .cal-day-head:first-child { background: var(--bg); }
 .cal-day-head.today { color: var(--green); }
 
-.cal-rows { }
+.cal-rows { display: flex; flex-direction: column; }
 .cal-time-row {
   display: grid;
   grid-template-columns: 80px repeat(7, 1fr);

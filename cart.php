@@ -92,6 +92,7 @@ if ($cartRow) {
         $addonStmt->close();
 
         $row['addons'] = $addons;
+        $row['guests'] = $row['guest_count'] ?? 0;
         $cart_items[] = $row;
     }
     $stmt->close();

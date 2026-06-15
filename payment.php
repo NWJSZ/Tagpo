@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['pay_now'])) {
     $eventDate  = $_GET['date']        ?? $_POST['event_date']  ?? '';
     $eventTime  = $_GET['time']        ?? $_POST['event_time']  ?? '';
     $duration   = $_GET['duration']    ?? $_POST['duration']    ?? '';
-    $guestCount = (int) ($_GET['guests'] ?? $_POST['guests'] ?? 0);
+    $guestCount = (int) ($_GET['guests'] ?? $_POST['guests'] ?? $_GET['guest_count'] ?? $_POST['guest_count'] ?? 0);
     $addons     = $_GET['addons']      ?? $_POST['addons']      ?? [];
 }
 
