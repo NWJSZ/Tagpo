@@ -18,14 +18,16 @@ $currentPage = 'users';
 /* ── Search ──────────────────────────────────────────────── */
 $search = trim($_GET['q'] ?? '');
 
-$sql = "SELECT id, first_name, last_name, email, phone, role FROM users WHERE 1=1"; 
+// Bff, idinamay natin ang `user_code` sa SELECT para ito ang mai-display natin sa UI
+$sql = "SELECT id, user_code, first_name, last_name, email, phone, role FROM users WHERE 1=1"; 
 $params = [];
 $types  = '';
 if ($search !== '') {
-    $sql .= " AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR phone LIKE ?)";
+    // Isinama natin si user_code sa search query para kapag sinearch ang "USR-0001", mahahanap siya agad!
+    $sql .= " AND (user_code LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR phone LIKE ?)";
     $like = '%' . $search . '%';
-    $params = [$like, $like, $like, $like];
-    $types  = 'ssss';
+    $params = [$like, $like, $like, $like, $like];
+    $types  = 'sssss';
 }
 $sql .= " ORDER BY id DESC";
 
@@ -38,7 +40,6 @@ $users = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 
 /* ── Stats ───────────────────────────────────────────────── */
-// Binago natin para mabilang ang 0 o 'user' depende sa database structure mo
 $totalUsers   = (int) ($conn->query("SELECT COUNT(*) AS c FROM users WHERE role='user' OR role='0'")->fetch_assoc()['c'] ?? 0);
 $activeUsers  = (int) ($conn->query("
     SELECT COUNT(DISTINCT user_id) AS c FROM bookings
@@ -55,8 +56,9 @@ if (!empty($userIds)) {
     $placeholders = implode(',', array_fill(0, count($userIds), '?'));
     $types2 = str_repeat('i', count($userIds));
 
+    // Bff, binago ko rin 'to para `booking_code` na ang i-display sa history!
     $stmt = $conn->prepare("
-        SELECT b.booking_id, b.user_id, b.event_date, b.event_time, b.status, b.total_price,
+        SELECT b.booking_id, b.booking_code, b.user_id, b.event_date, b.event_time, b.status, b.total_price,
                v.name AS venue_name, e.event_name
         FROM bookings b
         JOIN venues v ON b.venue_id = v.id
@@ -100,7 +102,7 @@ function statusBadgeClass(string $status): string {
       padding: 4px 12px;
       font-size: 12px;
       font-weight: 600;
-      border-radius: 50px; /* Hugis Capsule */
+      border-radius: 50px;
       text-align: center;
     }
     .badge-admin-red {
@@ -176,8 +178,7 @@ function statusBadgeClass(string $status): string {
       <div class="filter-toolbar">
         <form method="get" class="search-box" style="flex:1;">
           <i class="bi bi-search"></i>
-          <input type="text" name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Search by name, email, or phone number...">
-          <button type="submit" style="display:none;"></button>
+          <input type="text" name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Search by ID code, name, email...">
         </form>
       </div>
 
@@ -191,7 +192,8 @@ function statusBadgeClass(string $status): string {
               <th>Full Name</th>
               <th>Email</th>
               <th>Phone Number</th>
-              <th>Role</th> <th>Bookings</th>
+              <th>Role</th> 
+              <th>Bookings</th>
               <th></th>
             </tr>
           </thead>
@@ -202,7 +204,9 @@ function statusBadgeClass(string $status): string {
               $history  = $historyByUser[$u['id']] ?? [];
               $bookingsCount = $bookingCountByUser[$u['id']] ?? 0;
 
-              // Dito natin kino-convert ang 1 o 0 para maging Text at Capsule badge
+              // Fallback para sa mga lumang record na wala pang code sa database mo
+              $displayUserCode = $u['user_code'] ? $u['user_code'] : 'USR-' . str_pad($u['id'], 4, '0', STR_PAD_LEFT);
+
               if ($u['role'] == '1' || strtolower($u['role']) === 'admin') {
                   $roleText = 'Admin';
                   $roleClass = 'badge-admin-red';
@@ -216,8 +220,11 @@ function statusBadgeClass(string $status): string {
                   $historyHtml = '<div class="text-muted-sm">No bookings yet.</div>';
               } else {
                   foreach ($history as $h) {
+                      // Bff, ginawa ko ring booking_code ang lumalabas sa listahan ng side drawer!
+                      $displayBookingCode = $h['booking_code'] ? $h['booking_code'] : 'BKN-' . str_pad($h['booking_id'], 4, '0', STR_PAD_LEFT);
+                      
                       $historyHtml .= '<div class="info-row"><div>'
-                          . '<div class="info-value" style="text-align:left;">' . htmlspecialchars($h['venue_name']) . '</div>'
+                          . '<div class="info-value" style="text-align:left;">' . htmlspecialchars($displayBookingCode) . ' - ' . htmlspecialchars($h['venue_name']) . '</div>'
                           . '<div class="text-muted-sm">' . htmlspecialchars($h['event_name']) . ' &middot; ' . htmlspecialchars(date('M j, Y', strtotime($h['event_date']))) . '</div>'
                           . '</div>'
                           . '<div class="text-end"><span class="badge-status ' . statusBadgeClass($h['status']) . '">' . htmlspecialchars(ucfirst($h['status'])) . '</span>'
@@ -227,7 +234,7 @@ function statusBadgeClass(string $status): string {
               }
             ?>
               <tr class="user-row"
-                  data-id="<?= (int)$u['id'] ?>"
+                  data-id="<?= htmlspecialchars($displayUserCode, ENT_QUOTES) ?>"
                   data-name="<?= htmlspecialchars($fullName, ENT_QUOTES) ?>"
                   data-initial="<?= htmlspecialchars($initial, ENT_QUOTES) ?>"
                   data-email="<?= htmlspecialchars($u['email'], ENT_QUOTES) ?>"
@@ -235,7 +242,8 @@ function statusBadgeClass(string $status): string {
                   data-role="<?= htmlspecialchars($roleText, ENT_QUOTES) ?>"
                   data-bookings="<?= $bookingsCount ?>"
                   data-history="<?= htmlspecialchars($historyHtml, ENT_QUOTES) ?>">
-                <td class="text-muted-sm">#<?= (int)$u['id'] ?></td>
+                
+                <td class="text-muted-sm" style="font-weight: 600; color: #4b5563;"><?= htmlspecialchars($displayUserCode) ?></td>
                 <td>
                   <div class="d-flex align-center gap-8">
                     <div class="user-avatar"><?= htmlspecialchars($initial) ?></div>
@@ -283,10 +291,11 @@ function statusBadgeClass(string $status): string {
   <div class="drawer-body">
     <div class="drawer-section">
       <div class="drawer-section-title">User Information</div>
-      <div class="info-row"><div class="info-label">User ID</div><div class="info-value" id="drawerId"></div></div>
+      <div class="info-row"><div class="info-label">User Code</div><div class="info-value" id="drawerId" style="font-weight:600;"></div></div>
       <div class="info-row"><div class="info-label">Email</div><div class="info-value" id="drawerEmail"></div></div>
       <div class="info-row"><div class="info-label">Phone</div><div class="info-value" id="drawerPhone"></div></div>
-      <div class="info-row"><div class="info-label">Role</div><div class="info-value" id="drawerRole"></div></div> <div class="info-row"><div class="info-label">Total Bookings</div><div class="info-value" id="drawerBookings"></div></div>
+      <div class="info-row"><div class="info-label">Role</div><div class="info-value" id="drawerRole"></div></div> 
+      <div class="info-row"><div class="info-label">Total Bookings</div><div class="info-value" id="drawerBookings"></div></div>
     </div>
     <div class="drawer-section">
       <div class="drawer-section-title">Booking History</div>
@@ -299,7 +308,7 @@ function statusBadgeClass(string $status): string {
 function openDrawer(row) {
   document.getElementById('drawerName').textContent     = row.dataset.name;
   document.getElementById('drawerInitial').textContent  = row.dataset.initial;
-  document.getElementById('drawerId').textContent       = '#' + row.dataset.id;
+  document.getElementById('drawerId').textContent       = row.dataset.id; // Papasa nito e yung USR-XXXX string na
   document.getElementById('drawerEmail').textContent    = row.dataset.email;
   document.getElementById('drawerPhone').textContent    = row.dataset.phone;
   document.getElementById('drawerRole').textContent     = row.dataset.role;

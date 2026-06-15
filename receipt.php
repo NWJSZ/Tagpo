@@ -10,6 +10,7 @@ if (!isset($_SESSION['receipt_data'])) {
 
 $receipt = $_SESSION['receipt_data'];
 $issuedAt = date('F j, Y \a\t g:i A', $receipt['timestamp']);
+$isPending = ($receipt['payment_status'] ?? '') === 'pending';
 ?>
 
 <!DOCTYPE html>
@@ -89,6 +90,17 @@ $issuedAt = date('F j, Y \a\t g:i A', $receipt['timestamp']);
   <?php include 'includes/header.php'; ?>
 
   <main class="container receipt-card">
+
+    <?php if ($isPending): ?>
+    <div class="alert alert-warning d-flex align-items-start gap-2 mb-3" role="alert">
+      <i class="bi bi-hourglass-split fs-5 mt-1"></i>
+      <div>
+        <strong>Booking Pending — Awaiting Payment Confirmation</strong><br>
+        <span class="small">Your GCash payment is being verified by our admin. Your booking will be confirmed once payment is validated. Please keep this receipt for reference.</span>
+      </div>
+    </div>
+    <?php endif; ?>
+
     <div class="card shadow-sm border-0">
       <div class="card-body p-4">
         <div class="d-flex justify-content-between align-items-start mb-4">
@@ -97,7 +109,11 @@ $issuedAt = date('F j, Y \a\t g:i A', $receipt['timestamp']);
             <p class="text-muted mb-0">Thank you for your booking.</p>
           </div>
           <div class="text-end">
-            <span class="badge bg-primary receipt-badge">Invoice</span>
+            <?php if ($isPending): ?>
+              <span class="badge bg-warning text-dark receipt-badge">PENDING</span>
+            <?php else: ?>
+              <span class="badge bg-primary receipt-badge">Invoice</span>
+            <?php endif; ?>
             <h5 class="mb-0"><?= htmlspecialchars($receipt['invoice_number']); ?></h5>
             <small class="text-muted"><?= htmlspecialchars($issuedAt); ?></small>
           </div>
@@ -112,11 +128,19 @@ $issuedAt = date('F j, Y \a\t g:i A', $receipt['timestamp']);
           </div>
           <div class="col-md-6">
             <h6 class="text-uppercase text-secondary">Payment</h6>
-            <p class="mb-1"><?= htmlspecialchars($receipt['payment_method']); ?></p>
+            <p class="mb-1">
+              <?= htmlspecialchars($receipt['payment_method']); ?>
+              <?php if ($isPending): ?>
+                <span class="badge bg-warning text-dark ms-1">Pending</span>
+              <?php endif; ?>
+            </p>
             <?php if (!empty($receipt['card_last4'])): ?>
               <p class="mb-1">Card ending in ****<?= htmlspecialchars($receipt['card_last4']); ?></p>
             <?php endif; ?>
-            <p class="mb-0"><strong>Total Paid:</strong> ₱<?= number_format($receipt['total']); ?></p>
+            <p class="mb-0">
+              <strong><?= $isPending ? 'Total Due:' : 'Total Paid:' ?></strong>
+              ₱<?= number_format($receipt['total']); ?>
+            </p>
           </div>
         </div>
 

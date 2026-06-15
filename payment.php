@@ -118,7 +118,7 @@ if (empty($eventName)) {
     $eventName = $eventType;
 }
 
-$methodMsg   = '';
+$methodMsg = '';
 
 /* ==========================================================
    PROCESS PAYMENT SUBMISSION
@@ -176,7 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
         [$monthStr, $yearStr] = explode('/', $expiry);
         $cardExpiryMonth = (int) $monthStr;
         $cardExpiryYear  = (int) ('20' . $yearStr);
-        $currentYear = (int) date('Y');
+        $currentYear  = (int) date('Y');
         $currentMonth = (int) date('n');
         if ($cardExpiryYear < $currentYear || ($cardExpiryYear === $currentYear && $cardExpiryMonth < $currentMonth)) {
             die('Expired card. Please use a current or future expiry date.');
@@ -184,8 +184,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
 
         if (strlen($cvv) !== 3) die('CVV must be 3 digits.');
 
-        $cardHolderName  = trim($firstName . ' ' . $lastName);
-        $cardLastFour    = substr($cardRaw, -4);
+        $cardHolderName = trim($firstName . ' ' . $lastName);
+        $cardLastFour   = substr($cardRaw, -4);
 
     } elseif ($method === 'gcash') {
         $gcashAccountName = trim($_POST['gcash_name']   ?? '');
@@ -204,6 +204,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
         'gcash' => 'GCash',
         default => 'Credit Card',
     };
+
+    // Card = paid immediately; GCash = awaiting admin confirmation
+    $paymentStatus = ($method === 'card') ? 'paid'                  : 'pending';
+    $bookingStatus = ($method === 'card') ? 'confirmed'             : 'awaiting_confirmation';
 
     $transactionId = strtoupper(uniqid('TXN-'));
 
@@ -252,7 +256,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
             $stmt->close();
         }
 
-        // 2. Check if a payment record already exists for this cart (created by add_to_cart)
+        // 2. Check if a payment record already exists for this cart
         $stmt = $conn->prepare(
             "SELECT payment_id FROM payments WHERE cart_id = ? LIMIT 1"
         );
@@ -266,11 +270,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
             $paymentId = (int) $existingPayment['payment_id'];
             $stmt = $conn->prepare(
                 "UPDATE payments
-                 SET amount = ?, payment_method = ?, payment_status = 'paid',
+                 SET amount = ?, payment_method = ?, payment_status = ?,
                      transaction_id = ?, payment_date = NOW()
                  WHERE payment_id = ?"
             );
-            $stmt->bind_param('dssi', $formTotal, $dbMethod, $transactionId, $paymentId);
+            $stmt->bind_param('dsssi', $formTotal, $dbMethod, $paymentStatus, $transactionId, $paymentId);
             $stmt->execute();
             $stmt->close();
         } else {
@@ -278,9 +282,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
             $stmt = $conn->prepare(
                 "INSERT INTO payments
                     (cart_id, amount, payment_method, payment_status, transaction_id, payment_date)
-                 VALUES (?, ?, ?, 'paid', ?, NOW())"
+                 VALUES (?, ?, ?, ?, ?, NOW())"
             );
-            $stmt->bind_param('idss', $dbCartId, $formTotal, $dbMethod, $transactionId);
+            $stmt->bind_param('idsss', $dbCartId, $formTotal, $dbMethod, $paymentStatus, $transactionId);
             $stmt->execute();
             $paymentId = (int) $conn->insert_id;
             $stmt->close();
@@ -288,7 +292,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
 
         // 3. Insert into card_payments or gcash_payments child table
         if ($method === 'card') {
-            // Remove old record if updating
             $stmt = $conn->prepare("DELETE FROM card_payments WHERE payment_id = ?");
             $stmt->bind_param('i', $paymentId);
             $stmt->execute();
@@ -304,7 +307,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
             $stmt->close();
 
         } elseif ($method === 'gcash') {
-            // Remove old record if updating
             $stmt = $conn->prepare("DELETE FROM gcash_payments WHERE payment_id = ?");
             $stmt->bind_param('i', $paymentId);
             $stmt->execute();
@@ -320,12 +322,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
             $stmt->close();
         }
 
-        // 4. Mark bookings as confirmed
+        // 4. Mark bookings — confirmed for card, awaiting_confirmation for gcash
         if (!empty($hiddenBookingIds)) {
             $placeholders = implode(',', array_fill(0, count($hiddenBookingIds), '?'));
             $types = str_repeat('i', count($hiddenBookingIds));
             $stmt  = $conn->prepare(
-                "UPDATE bookings SET status = 'confirmed'
+                "UPDATE bookings SET status = '$bookingStatus'
                  WHERE cart_id IN ($placeholders) AND user_id = ?"
             );
             $stmt->bind_param($types . 'i', ...[...$hiddenBookingIds, $uid]);
@@ -370,6 +372,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
         'fees'           => $fees,
         'total'          => $formTotal,
         'payment_method' => $methodMsg,
+        'payment_status' => $paymentStatus,
         'card_last4'     => $cardLastFour ?: null,
         'timestamp'      => time(),
     ];
@@ -384,7 +387,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
         $_SESSION['cart'] = [];
     }
 
-    header('Location: receipt.php');
+    // 8. Show appropriate notification then redirect
+    if ($method === 'card') {
+        // Success popup for card payments
+        ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Payment Successful | TAGPO</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"/>
+  <style>
+    body { background: #f8f9fa; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+    .success-card { background: #fff; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); padding: 2.5rem 3rem; text-align: center; max-width: 420px; width: 100%; animation: fadeIn .4s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+    .checkmark { font-size: 4rem; color: #198754; }
+    .progress-bar-wrap { height: 5px; background: #e9ecef; border-radius: 99px; overflow: hidden; margin-top: 1.5rem; }
+    .progress-bar-fill { height: 100%; background: #198754; border-radius: 99px; animation: shrink 3s linear forwards; }
+    @keyframes shrink { from { width: 100%; } to { width: 0%; } }
+  </style>
+</head>
+<body>
+  <div class="success-card">
+    <div class="checkmark"><i class="bi bi-check-circle-fill"></i></div>
+    <h3 class="fw-bold mt-3 mb-1">Payment Successful!</h3>
+    <p class="text-muted mb-1">
+      <strong>₱<?= number_format($formTotal) ?></strong> has been deducted from your account.
+    </p>
+    <p class="text-muted small">Transaction ID: <span class="fw-semibold"><?= htmlspecialchars($transactionId) ?></span></p>
+    <p class="text-muted small mb-0">Redirecting you to your receipt...</p>
+    <div class="progress-bar-wrap"><div class="progress-bar-fill"></div></div>
+  </div>
+  <script>setTimeout(function () { window.location.href = 'receipt.php'; }, 3000);</script>
+</body>
+</html>
+        <?php
+    } else {
+        // GCash — go straight to receipt (status is pending, admin will confirm)
+        header('Location: receipt.php');
+    }
     exit();
 }
 ?>
@@ -398,7 +441,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <link rel="stylesheet" href="assets/css/styles.css"/>
   <style>
-    .payment-section{transition:all .2s ease-in-out;}
+    .payment-section { transition: all .2s ease-in-out; }
     .input-invalid {
       border-color: #dc3545 !important;
       box-shadow: 0 0 0 0.15rem rgba(220, 53, 69, 0.25);
@@ -555,13 +598,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
 
           <!-- GCash fields -->
           <div id="gcash_section" class="payment-section" style="display:none;">
+            <div class="alert alert-info d-flex align-items-start gap-2 mb-3" role="alert">
+              <i class="bi bi-info-circle-fill mt-1"></i>
+              <div>
+                <strong>GCash — Manual Verification</strong><br>
+                <span class="small">Send your payment to one of the GCash accounts below. Your booking will be marked as <strong>pending</strong> until our admin confirms your payment.</span>
+              </div>
+            </div>
+
             <div class="mb-3">
-              <label class="form-label">GCash Account Name</label>
+              <label class="form-label">Send Payment To</label>
+              <select class="form-select" id="gcash_account_select" onchange="fillGcashAccount(this)">
+                <option value="" disabled selected>-- Select Admin GCash Account --</option>
+                <option value="09171234567|Juan dela Cruz">09171234567 — Juan dela Cruz</option>
+                <option value="09281234567|Maria Santos">09281234567 — Maria Santos</option>
+                <option value="09391234567|Admin TAGPO">09391234567 — Admin TAGPO</option>
+              </select>
+              <div class="mt-2 p-2 rounded" id="gcash_account_display" style="display:none; background:#e8f4fd; border:1px solid #b8daff;">
+                <small class="text-primary fw-semibold"><i class="bi bi-phone-fill me-1"></i><span id="gcash_display_number"></span> — <span id="gcash_display_name"></span></small>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Your GCash Account Name</label>
               <input type="text" name="gcash_name" id="gcash_name" class="form-control"
                      placeholder="Full Name">
             </div>
             <div class="mb-3">
-              <label class="form-label">GCash Number</label>
+              <label class="form-label">Your GCash Number</label>
               <input type="text" name="gcash_number" id="gcash_number" class="form-control"
                      placeholder="09XX XXX XXXX" maxlength="13">
             </div>
@@ -580,6 +644,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
 <?php include 'includes/footer.php'; ?>
 
 <script>
+function fillGcashAccount(select) {
+  const val = select.value;
+  if (!val) return;
+  const [number, name] = val.split('|');
+  document.getElementById('gcash_display_number').textContent = number;
+  document.getElementById('gcash_display_name').textContent = name;
+  document.getElementById('gcash_account_display').style.display = 'block';
+}
+
 function updatePaymentFields() {
   const method = document.getElementById('method_select').value;
   document.getElementById('card_section').style.display  = method === 'card'  ? 'block' : 'none';
@@ -588,18 +661,18 @@ function updatePaymentFields() {
 
 document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('phone_input').addEventListener('input', function () {
-    let v = this.value.replace(/\D/g,'').slice(0,10);
+    let v = this.value.replace(/\D/g, '').slice(0, 10);
     let f = '';
-    if (v.length > 0) f = v.slice(0,3);
-    if (v.length > 3) f += ' ' + v.slice(3,6);
-    if (v.length > 6) f += ' ' + v.slice(6,10);
+    if (v.length > 0) f = v.slice(0, 3);
+    if (v.length > 3) f += ' ' + v.slice(3, 6);
+    if (v.length > 6) f += ' ' + v.slice(6, 10);
     this.value = f;
   });
 
   const cardInput = document.getElementById('card_number');
   if (cardInput) {
     cardInput.addEventListener('input', function () {
-      let v = this.value.replace(/\D/g,'').slice(0,16);
+      let v = this.value.replace(/\D/g, '').slice(0, 16);
       this.value = v.match(/.{1,4}/g)?.join(' ') ?? v;
     });
   }
@@ -620,10 +693,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
   if (expiryInput) {
     expiryInput.addEventListener('input', function () {
-      let v = this.value.replace(/\D/g,'');
+      let v = this.value.replace(/\D/g, '');
       if (v.length >= 2) {
-        let m = Math.min(12, Math.max(1, parseInt(v.slice(0,2))));
-        this.value = String(m).padStart(2,'0') + (v.length > 2 ? '/' + v.slice(2,4) : '');
+        let m = Math.min(12, Math.max(1, parseInt(v.slice(0, 2))));
+        this.value = String(m).padStart(2, '0') + (v.length > 2 ? '/' + v.slice(2, 4) : '');
       } else {
         this.value = v;
       }
@@ -648,29 +721,29 @@ document.addEventListener('DOMContentLoaded', function () {
   const cvvInput = document.getElementById('cvv');
   if (cvvInput) {
     cvvInput.addEventListener('input', function () {
-      this.value = this.value.replace(/\D/g,'').slice(0,3);
+      this.value = this.value.replace(/\D/g, '').slice(0, 3);
     });
   }
 
   const gcashInput = document.getElementById('gcash_number');
   if (gcashInput) {
     gcashInput.addEventListener('input', function () {
-      let v = this.value.replace(/\D/g,'').slice(0,11);
+      let v = this.value.replace(/\D/g, '').slice(0, 11);
       let f = '';
-      if (v.length > 0) f = v.slice(0,4);
-      if (v.length > 4) f += ' ' + v.slice(4,7);
-      if (v.length > 7) f += ' ' + v.slice(7,11);
+      if (v.length > 0) f = v.slice(0, 4);
+      if (v.length > 4) f += ' ' + v.slice(4, 7);
+      if (v.length > 7) f += ' ' + v.slice(7, 11);
       this.value = f;
     });
   }
 
   document.getElementById('payment-checkout-form').addEventListener('submit', function (e) {
-    const phone = document.getElementById('phone_input').value.replace(/\D/g,'');
+    const phone = document.getElementById('phone_input').value.replace(/\D/g, '');
     if (phone.length !== 10) { e.preventDefault(); alert('Phone number must be 10 digits.'); return; }
 
     const method = document.getElementById('method_select').value;
     if (method === 'card') {
-      if (cardInput.value.replace(/\D/g,'').length !== 16) { e.preventDefault(); alert('Card number must be 16 digits.'); return; }
+      if (cardInput.value.replace(/\D/g, '').length !== 16) { e.preventDefault(); alert('Card number must be 16 digits.'); return; }
       if (!expiryInput.value.match(/^(0[1-9]|1[0-2])\/\d{2}$/)) { e.preventDefault(); alert('Invalid expiry date (MM/YY).'); return; }
       const [month, year] = expiryInput.value.split('/').map(Number);
       const expiryYear = 2000 + year;
@@ -686,7 +759,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (cvvInput.value.length !== 3) { e.preventDefault(); alert('CVV must be 3 digits.'); return; }
     }
     if (method === 'gcash') {
-      const g = gcashInput.value.replace(/\D/g,'');
+      const g = gcashInput.value.replace(/\D/g, '');
       if (g.length !== 11) { e.preventDefault(); alert('GCash number must be 11 digits.'); return; }
     }
   });

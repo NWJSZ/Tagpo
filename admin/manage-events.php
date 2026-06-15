@@ -16,7 +16,7 @@ $currentUser = getCurrentUser();
 $currentPage = 'events';
 $msg = '';
 
-/* ── 1. PHP ACTION PROCESSING (Add, Edit, Delete) ────────────────── */
+/* ── 1. PHP ACTION PROCESSING (Add, Edit, Archive, Restore) ────────────────── */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
@@ -26,9 +26,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($name !== '') {
             $stmt = $conn->prepare("INSERT INTO event (event_name) VALUES (?)");
             $stmt->bind_param('s', $name);
-            $stmt->execute();
+            
+            if ($stmt->execute()) {
+                $msg = "Event Type successfully added!";
+            } else {
+                die("<div style='color:red; padding:20px; background:#fee; font-family:sans-serif;'><strong>MySQL Insert Error (Event):</strong> " . $stmt->error . "</div>");
+            }
             $stmt->close();
-            $msg = "Event Type successfully added!";
         }
     }
 
@@ -53,11 +57,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->bind_param('i', $id);
             $stmt->execute();
             $stmt->close();
-            $msg = "Event Type successfully archived!";
+            
+            // Auto-archive associated addons dynamically
+            $stmtAddon = $conn->prepare("UPDATE addons SET archived = 1 WHERE event_id = ?");
+            $stmtAddon->bind_param('i', $id);
+            $stmtAddon->execute();
+            $stmtAddon->close();
+
+            $msg = "Event Type and its associated add-ons successfully archived!";
         }
     }
 
-    // D. ADD ADD-ON (Tied to an Event Type)
+    // NEW: RESTORE EVENT TYPE
+    if ($action === 'restore_event') {
+        $id = (int)($_POST['event_id'] ?? 0);
+        if ($id > 0) {
+            $stmt = $conn->prepare("UPDATE event SET archived = 0 WHERE event_id = ?");
+            $stmt->bind_param('i', $id);
+            $stmt->execute();
+            $stmt->close();
+            $msg = "Event Type successfully restored!";
+        }
+    }
+
+    // D. ADD ADD-ON
     if ($action === 'add_addon') {
         $event_id = (int)($_POST['event_id'] ?? 0);
         $name = trim($_POST['addon_name'] ?? '');
@@ -65,9 +88,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($name !== '' && $event_id > 0) {
             $stmt = $conn->prepare("INSERT INTO addons (event_id, addon_name, price) VALUES (?, ?, ?)");
             $stmt->bind_param('isd', $event_id, $name, $price);
-            $stmt->execute();
+            
+            if ($stmt->execute()) {
+                $msg = "Add-on successfully added to the event category!";
+            } else {
+                die("<div style='color:red; padding:20px; background:#fee; font-family:sans-serif;'><strong>MySQL Insert Error (Addon):</strong> " . $stmt->error . "<br><br><em>Paki-double check ang Trigger or database table structures mo.</em></div>");
+            }
             $stmt->close();
-            $msg = "Add-on successfully added to the event category!";
         }
     }
 
@@ -97,12 +124,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $msg = "Add-on successfully archived!";
         }
     }
+
+    // NEW: RESTORE ADD-ON
+    if ($action === 'restore_addon') {
+        $id = (int)($_POST['addon_id'] ?? 0);
+        if ($id > 0) {
+            $stmt = $conn->prepare("UPDATE addons SET archived = 0 WHERE addon_id = ?");
+            $stmt->bind_param('i', $id);
+            $stmt->execute();
+            $stmt->close();
+            $msg = "Add-on successfully restored!";
+        }
+    }
 }
 
-/* ── 2. FETCH DATA FOR EVENT-CENTRIC DISPLAY ─────────────────────── */
+/* ── 2. FETCH ACTIVE DATA ─────────────────────── */
 $events = $conn->query("SELECT event_id, event_name FROM event WHERE archived = 0 ORDER BY event_name ASC")->fetch_all(MYSQLI_ASSOC);
 
-// Kinukuha natin ang addons at igru-grupo natin base sa kanilang event_id
 $addons_raw = $conn->query("
     SELECT addon_id, event_id, addon_name, price 
     FROM addons 
@@ -114,6 +152,16 @@ $addons_by_event = [];
 foreach ($addons_raw as $addon) {
     $addons_by_event[$addon['event_id']][] = $addon;
 }
+
+/* ── 3. FETCH ARCHIVED DATA FOR THE VIEW TOGGLE ─────────────────────── */
+$archived_events = $conn->query("SELECT event_id, event_name FROM event WHERE archived = 1 ORDER BY event_name ASC")->fetch_all(MYSQLI_ASSOC);
+$archived_addons = $conn->query("
+    SELECT a.addon_id, a.addon_name, a.price, e.event_name 
+    FROM addons a
+    LEFT JOIN event e ON a.event_id = e.event_id
+    WHERE a.archived = 1
+    ORDER BY a.addon_name ASC
+")->fetch_all(MYSQLI_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -154,19 +202,11 @@ foreach ($addons_raw as $addon) {
     .addon-table th { text-align: left; padding: 10px; font-size: 13px; font-weight: 600; color: var(--muted); background: var(--bg); border-radius: var(--radius); }
     .addon-table td { padding: 12px 10px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: middle; }
     .addon-table tr:last-child td { border-bottom: none; }
-
-    .custom-modal { 
-        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-        background: rgba(0,0,0,0.4); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(2px);
-    }
-    .modal-content { 
-        background: var(--surface); padding: 24px; border-radius: var(--radius-lg); width: 100%; max-width: 440px; 
-        box-shadow: var(--shadow-md); border: 1px solid var(--border);
-    }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 20px; }
-    .modal-header h3 { font-size: 16px; font-weight: 700; margin: 0; }
-    .modal-close { background: transparent; border: none; font-size: 22px; cursor: pointer; color: var(--muted); }
     .top-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; flex-wrap: wrap; gap: 15px; }
+    
+    .archive-section { display: none; background: #fafafa; border: 2px dashed #ccc; border-radius: var(--radius-lg); padding: 20px; margin-top: 20px; }
+    .archive-section.show { display: block; }
+    .badge-archived { background: #6c757d; color: #fff; padding: 3px 8px; font-size: 11px; border-radius: 4px; }
   </style>
 </head>
 <body>
@@ -192,15 +232,75 @@ foreach ($addons_raw as $addon) {
         <h1 style="margin:0; font-size:24px; font-weight:700;">Events & Add-ons</h1>
         <p style="margin:4px 0 0 0; color:var(--muted); font-size:13.5px;">Manage global event styles and their dedicated sub-services (applicable across all 3 venues).</p>
       </div>
-      <div>
-        <button class="btn-action btn-primary-green" onclick="openModal('addEventModal')"><i class="bi bi-plus-lg"></i> New Event Category</button>
+      <div class="d-flex gap-2">
+        <button class="btn-action btn-outline-muted" onclick="toggleArchiveSection()" id="archiveToggleBtn">
+          <i class="bi bi-archive-fill"></i> View Archive Vault
+        </button>
+        <button class="btn-action btn-primary-green" onclick="openEventDrawer('add')"><i class="bi bi-plus-lg"></i> New Event Category</button>
       </div>
+    </div>
+
+    <div class="archive-section" id="archiveVault">
+      <h3 style="font-size: 16px; font-weight:700; color:#495057;" class="mb-3"><i class="bi bi-safe2"></i> Archived Content Recovery</h3>
+      
+      <div class="row" style="display: flex; gap: 20px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 280px; background: #fff; padding: 15px; border-radius: var(--radius); box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+          <h4 style="font-size:13px; text-transform: uppercase; color:var(--muted);" class="mb-2">Archived Categories</h4>
+          <?php if (empty($archived_events)): ?>
+            <p style="font-size:12px; color:#999; font-style:italic;">No archived event types.</p>
+          <?php else: ?>
+            <table class="addon-table" style="font-size:13px;">
+              <?php foreach ($archived_events as $ae): ?>
+                <tr>
+                  <td><s><?= htmlspecialchars($ae['event_name']) ?></s></td>
+                  <td style="text-align: right;">
+                    <button class="btn-action btn-outline-green" style="padding:2px 8px; font-size:11px;" onclick="submitRestore('event', <?= $ae['event_id'] ?>)">
+                      <i class="bi bi-arrow-counterclockwise"></i> Restore
+                    </button>
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+            </table>
+          <?php endif; ?>
+        </div>
+
+        <div style="flex: 1; min-width: 320px; background: #fff; padding: 15px; border-radius: var(--radius); box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+          <h4 style="font-size:13px; text-transform: uppercase; color:var(--muted);" class="mb-2">Archived Individual Add-ons</h4>
+          <?php if (empty($archived_addons)): ?>
+            <p style="font-size:12px; color:#999; font-style:italic;">No archived add-ons.</p>
+          <?php else: ?>
+            <table class="addon-table" style="font-size:13px;">
+              <thead>
+                <tr>
+                  <th>Add-on Name</th>
+                  <th>Former Category</th>
+                  <th style="text-align: right;">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php foreach ($archived_addons as $aa): ?>
+                  <tr>
+                    <td><s><?= htmlspecialchars($aa['addon_name']) ?></s></td>
+                    <td><span class="badge-archived"><?= htmlspecialchars($aa['event_name'] ?? 'Unlinked') ?></span></td>
+                    <td style="text-align: right;">
+                      <button class="btn-action btn-outline-green" style="padding:2px 8px; font-size:11px;" onclick="submitRestore('addon', <?= $aa['addon_id'] ?>)">
+                        <i class="bi bi-arrow-counterclockwise"></i> Restore
+                      </button>
+                    </td>
+                  </tr>
+                <?php endforeach; ?>
+              </tbody>
+            </table>
+          <?php endif; ?>
+        </div>
+      </div>
+      <hr style="border: 0; border-top: 1px solid #ddd; margin: 15px 0;">
     </div>
 
     <?php if (empty($events)): ?>
       <div class="panel-card" style="padding: 40px; text-align: center; color: var(--muted);">
         <i class="bi bi-card-list" style="font-size: 48px; color: var(--border);"></i>
-        <p class="mt-2">No event categories established yet.</p>
+        <p class="mt-2">No active event categories established yet.</p>
       </div>
     <?php else: ?>
       
@@ -211,8 +311,8 @@ foreach ($addons_raw as $addon) {
               <i class="bi bi-stars"></i> <?= htmlspecialchars($e['event_name']) ?>
             </h2>
             <div class="d-flex gap-2">
-              <button class="btn-action btn-outline-green" style="font-size:12px; padding: 5px 12px;" onclick="triggerAddAddon(<?= $e['event_id'] ?>)"><i class="bi bi-plus-lg"></i> Add Add-on</button>
-              <button class="icon-btn" onclick="openEditEvent(<?= $e['event_id'] ?>, '<?= htmlspecialchars($e['event_name'], ENT_QUOTES) ?>')"><i class="bi bi-pencil"></i></button>
+              <button class="btn-action btn-outline-green" style="font-size:12px; padding: 5px 12px;" onclick="openAddonDrawer('add', null, null, null, <?= $e['event_id'] ?>)"><i class="bi bi-plus-lg"></i> Add Add-on</button>
+              <button class="icon-btn" onclick="openEventDrawer('edit', <?= $e['event_id'] ?>, '<?= htmlspecialchars($e['event_name'], ENT_QUOTES) ?>')"><i class="bi bi-pencil"></i></button>
               <button class="icon-btn" style="color:var(--danger);" onclick="openDeleteEvent(<?= $e['event_id'] ?>)"><i class="bi bi-trash"></i></button>
             </div>
           </div>
@@ -240,7 +340,7 @@ foreach ($addons_raw as $addon) {
                     <td><span class="badge-status badge-active">₱<?= number_format($a['price'], 2) ?></span></td>
                     <td style="text-align:right; padding-right: 15px;">
                       <div class="d-flex gap-2 justify-content-end">
-                        <button class="icon-btn" onclick="openEditAddon(<?= $a['addon_id'] ?>, '<?= htmlspecialchars($a['addon_name'], ENT_QUOTES) ?>', <?= $a['price'] ?>, <?= $a['event_id'] ?>)"><i class="bi bi-pencil-square"></i></button>
+                        <button class="icon-btn" onclick="openAddonDrawer('edit', <?= $a['addon_id'] ?>, '<?= htmlspecialchars($a['addon_name'], ENT_QUOTES) ?>', <?= $a['price'] ?>, <?= $a['event_id'] ?>)"><i class="bi bi-pencil-square"></i></button>
                         <button class="icon-btn" style="color:var(--danger);" onclick="openDeleteAddon(<?= $a['addon_id'] ?>)"><i class="bi bi-trash"></i></button>
                       </div>
                     </td>
@@ -257,93 +357,161 @@ foreach ($addons_raw as $addon) {
   </div>
 </div>
 
-<div class="custom-modal" id="addEventModal">
-  <div class="modal-content">
-    <div class="modal-header"><h3>Add New Event Category</h3><button class="modal-close" onclick="closeModal('addEventModal')">&times;</button></div>
-    <form method="POST"><input type="hidden" name="action" value="add_event">
-      <div class="mb-3"><label class="form-label-sm">Event Name</label><input type="text" class="form-ctrl" name="event_name" required placeholder="e.g. Wedding, Birthday"></div>
-      <div class="d-flex justify-content-end gap-2 mt-4"><button type="button" class="btn-action btn-outline-gray" onclick="closeModal('addEventModal')">Cancel</button><button type="submit" class="btn-action btn-primary-green">Save Category</button></div>
-    </form>
-  </div>
-</div>
+<div class="side-drawer-overlay" id="drawerOverlay" onclick="closeAllDrawers()"></div>
 
-<div class="custom-modal" id="editEventModal">
-  <div class="modal-content">
-    <div class="modal-header"><h3>Edit Event Title</h3><button class="modal-close" onclick="closeModal('editEventModal')">&times;</button></div>
-    <form method="POST"><input type="hidden" name="action" value="edit_event"><input type="hidden" name="event_id" id="edit_ev_id">
-      <div class="mb-3"><label class="form-label-sm">Event Name</label><input type="text" class="form-ctrl" name="event_name" id="edit_ev_name" required></div>
-      <div class="d-flex justify-content-end gap-2 mt-4"><button type="button" class="btn-action btn-outline-gray" onclick="closeModal('editEventModal')">Cancel</button><button type="submit" class="btn-action btn-primary-green">Update Name</button></div>
-    </form>
+<div class="side-drawer" id="eventDrawer">
+  <div class="drawer-header">
+    <div>
+      <h3 id="eventDrawerTitle">Category Configuration</h3>
+      <p style="margin:0; font-size:13px; color:var(--muted);">Global classification setups</p>
+    </div>
+    <button class="drawer-close" onclick="closeAllDrawers()"><i class="bi bi-x-lg"></i></button>
   </div>
-</div>
-
-<div class="custom-modal" id="addAddonModal">
-  <div class="modal-content">
-    <div class="modal-header"><h3>Add New Add-on</h3><button class="modal-close" onclick="closeModal('addAddonModal')">&times;</button></div>
-    <form method="POST"><input type="hidden" name="action" value="add_addon"><input type="hidden" name="event_id" id="add_addon_event_id">
-      <div class="mb-3"><label class="form-label-sm">Add-on Name</label><input type="text" class="form-ctrl" name="addon_name" required placeholder="e.g. Photo Booth, Catering Combo"></div>
-      <div class="mb-3"><label class="form-label-sm">Price (₱)</label><input type="number" class="form-ctrl" name="price" step="0.01" required placeholder="0.00"></div>
-      <div class="d-flex justify-content-end gap-2 mt-4"><button type="button" class="btn-action btn-outline-gray" onclick="closeModal('addAddonModal')">Cancel</button><button type="submit" class="btn-action btn-primary-green">Save Add-on</button></div>
-    </form>
-  </div>
-</div>
-
-<div class="custom-modal" id="editAddonModal">
-  <div class="modal-content">
-    <div class="modal-header"><h3>Edit Add-on Details</h3><button class="modal-close" onclick="closeModal('editAddonModal')">&times;</button></div>
-    <form method="POST"><input type="hidden" name="action" value="edit_addon"><input type="hidden" name="addon_id" id="edit_ad_id">
+  <div class="drawer-body">
+    <form method="POST" id="eventForm">
+      <input type="hidden" name="action" id="eventActionField" value="add_event">
+      <input type="hidden" name="event_id" id="event_id_field">
+      
       <div class="mb-3">
-        <label class="form-label-sm">Move to Event Category</label>
-        <select name="event_id" id="edit_ad_event_id" class="form-ctrl" required>
+        <label class="form-label-sm">Event Category Name</label>
+        <input type="text" class="form-ctrl" name="event_name" id="event_name_field" required placeholder="e.g. Wedding, Birthday, Corporate">
+      </div>
+    </form>
+  </div>
+  <div class="drawer-footer">
+    <button type="button" class="btn-full btn-full-outline" onclick="closeAllDrawers()">Cancel</button>
+    <button type="submit" form="eventForm" class="btn-full btn-full-green" id="eventSubmitBtn">Save Category</button>
+  </div>
+</div>
+
+<div class="side-drawer" id="addonDrawer">
+  <div class="drawer-header">
+    <div>
+      <h3 id="addonDrawerTitle">Add-on Item Configuration</h3>
+      <p style="margin:0; font-size:13px; color:var(--muted);">Sub-service itemizations</p>
+    </div>
+    <button class="drawer-close" onclick="closeAllDrawers()"><i class="bi bi-x-lg"></i></button>
+  </div>
+  <div class="drawer-body">
+    <form method="POST" id="addonForm">
+      <input type="hidden" name="action" id="addonActionField" value="add_addon">
+      <input type="hidden" name="addon_id" id="addon_id_field">
+      
+      <div class="mb-3" id="addonCategorySelectorBlock">
+        <label class="form-label-sm">Linked Event Category</label>
+        <select name="event_id" id="addon_event_id_field" class="form-ctrl" required>
           <?php foreach ($events as $e): ?>
             <option value="<?= $e['event_id'] ?>"><?= htmlspecialchars($e['event_name']) ?></option>
           <?php endforeach; ?>
         </select>
       </div>
-      <div class="mb-3"><label class="form-label-sm">Add-on Name</label><input type="text" class="form-ctrl" name="addon_name" id="edit_ad_name" required></div>
-      <div class="mb-3"><label class="form-label-sm">Price (₱)</label><input type="number" class="form-ctrl" name="price" id="edit_ad_price" step="0.01" required></div>
-      <div class="d-flex justify-content-end gap-2 mt-4"><button type="button" class="btn-action btn-outline-gray" onclick="closeModal('editAddonModal')">Cancel</button><button type="submit" class="btn-action btn-primary-green">Update Add-on</button></div>
+      
+      <div class="mb-3">
+        <label class="form-label-sm">Add-on Item Name</label>
+        <input type="text" class="form-ctrl" name="addon_name" id="addon_name_field" required placeholder="e.g. Photo Booth Setup, Sound System Pro">
+      </div>
+      
+      <div class="mb-3">
+        <label class="form-label-sm">Standard Price (₱)</label>
+        <input type="number" class="form-ctrl" name="price" id="addon_price_field" step="0.01" required placeholder="0.00">
+      </div>
     </form>
+  </div>
+  <div class="drawer-footer">
+    <button type="button" class="btn-full btn-full-outline" onclick="closeAllDrawers()">Cancel</button>
+    <button type="submit" form="addonForm" class="btn-full btn-full-green" id="addonSubmitBtn">Save Add-on</button>
   </div>
 </div>
 
 <form id="deleteEventForm" method="POST" style="display:none;"><input type="hidden" name="action" value="delete_event"><input type="hidden" name="event_id" id="delete_ev_id"></form>
 <form id="deleteAddonForm" method="POST" style="display:none;"><input type="hidden" name="action" value="delete_addon"><input type="hidden" name="addon_id" id="delete_ad_id"></form>
+<form id="restoreForm" method="POST" style="display:none;"><input type="hidden" name="action" id="restoreAction"><input type="hidden" name="event_id" id="restoreEventId"><input type="hidden" name="addon_id" id="restoreAddonId"></form>
 
 <script>
-function openModal(id) { document.getElementById(id).style.display = 'flex'; }
-function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+function closeAllDrawers() {
+  document.getElementById('eventDrawer').classList.remove('open');
+  document.getElementById('addonDrawer').classList.remove('open');
+  document.getElementById('drawerOverlay').classList.remove('open');
+}
 
-function openEditEvent(id, name) {
-  document.getElementById('edit_ev_id').value = id;
-  document.getElementById('edit_ev_name').value = name;
-  openModal('editEventModal');
+function openEventDrawer(mode, id = null, name = '') {
+  closeAllDrawers();
+  if (mode === 'add') {
+    document.getElementById('eventDrawerTitle').textContent = "Add New Event Category";
+    document.getElementById('eventActionField').value       = "add_event";
+    document.getElementById('event_id_field').value         = "";
+    document.getElementById('event_name_field').value       = "";
+    document.getElementById('eventSubmitBtn').textContent   = "Save Category";
+  } else {
+    document.getElementById('eventDrawerTitle').textContent = "Edit Event Category Title";
+    document.getElementById('eventActionField').value       = "edit_event";
+    document.getElementById('event_id_field').value         = id;
+    document.getElementById('event_name_field').value       = name;
+    document.getElementById('eventSubmitBtn').textContent   = "Update Name";
+  }
+  document.getElementById('eventDrawer').classList.add('open');
+  document.getElementById('drawerOverlay').classList.add('open');
+}
+
+function openAddonDrawer(mode, id = null, name = '', price = '', eventId = null) {
+  closeAllDrawers();
+  if (mode === 'add') {
+    document.getElementById('addonDrawerTitle').textContent = "Add New Add-on";
+    document.getElementById('addonActionField').value       = "add_addon";
+    document.getElementById('addon_id_field').value         = "";
+    document.getElementById('addon_name_field').value       = "";
+    document.getElementById('addon_price_field').value      = "";
+    document.getElementById('addon_event_id_field').value   = eventId;
+    document.getElementById('addonSubmitBtn').textContent   = "Save Add-on";
+  } else {
+    document.getElementById('addonDrawerTitle').textContent = "Edit Add-on Details";
+    document.getElementById('addonActionField').value       = "edit_addon";
+    document.getElementById('addon_id_field').value         = id;
+    document.getElementById('addon_name_field').value       = name;
+    document.getElementById('addon_price_field').value      = price;
+    document.getElementById('addon_event_id_field').value   = eventId;
+    document.getElementById('addonSubmitBtn').textContent   = "Update Add-on";
+  }
+  document.getElementById('addonDrawer').classList.add('open');
+  document.getElementById('drawerOverlay').classList.add('open');
 }
 
 function openDeleteEvent(id) {
-  if (confirm('Are you sure you want to delete this event category? Doing so will permanently delete all associated add-ons.')) {
+  if (confirm('Are you sure you want to delete this event category? Doing so will softly archive all associated add-ons.')) {
     document.getElementById('delete_ev_id').value = id;
     document.getElementById('deleteEventForm').submit();
   }
-}
-
-function triggerAddAddon(eventId) {
-    document.getElementById('add_addon_event_id').value = eventId;
-    openModal('addAddonModal');
-}
-
-function openEditAddon(id, name, price, eventId) {
-  document.getElementById('edit_ad_id').value = id;
-  document.getElementById('edit_ad_name').value = name;
-  document.getElementById('edit_ad_price').value = price;
-  document.getElementById('edit_ad_event_id').value = eventId;
-  openModal('editAddonModal');
 }
 
 function openDeleteAddon(id) {
   if (confirm('Are you sure you want to delete this add-on item?')) {
     document.getElementById('delete_ad_id').value = id;
     document.getElementById('deleteAddonForm').submit();
+  }
+}
+
+function toggleArchiveSection() {
+  const vault = document.getElementById('archiveVault');
+  const btn = document.getElementById('archiveToggleBtn');
+  vault.classList.toggle('show');
+  
+  if(vault.classList.contains('show')) {
+    btn.innerHTML = '<i class="bi bi-eye-slash-fill"></i> Hide Archive Vault';
+  } else {
+    btn.innerHTML = '<i class="bi bi-archive-fill"></i> View Archive Vault';
+  }
+}
+
+function submitRestore(type, id) {
+  if(confirm('Do you want to restore this item back to active services?')) {
+    if(type === 'event') {
+      document.getElementById('restoreAction').value = 'restore_event';
+      document.getElementById('restoreEventId').value = id;
+    } else {
+      document.getElementById('restoreAction').value = 'restore_addon';
+      document.getElementById('restoreAddonId').value = id;
+    }
+    document.getElementById('restoreForm').submit();
   }
 }
 </script>

@@ -5,10 +5,8 @@ require_once 'config/app.php';
 
 $baseUrl = getBaseUrl();
 
-// Update activity
 $_SESSION['last_activity'] = time();
 
-// Refresh cookie
 if (isset($_SESSION['current_user'])) {
     setcookie('user_session', $_SESSION['current_user']['email'], time() + (60 * 60 * 24 * 7), '/');
 }
@@ -40,7 +38,19 @@ if (isset($_GET['action']) && $_GET['action'] === 'remove' && isset($_GET['id'])
 
 $cart_items = [];
 
-$stmt = $conn->prepare("SELECT cart_id FROM carts WHERE user_id = ? AND status = 'active' LIMIT 1");
+// Look for active cart first; if none, check if there's a checked_out cart that still has pending bookings
+$stmt = $conn->prepare(
+    "SELECT c.cart_id FROM carts c
+     WHERE c.user_id = ?
+       AND (
+         c.status = 'active'
+         OR (c.status = 'checked_out' AND EXISTS (
+               SELECT 1 FROM bookings b
+               WHERE b.cart_id = c.cart_id AND b.status = 'pending'
+         ))
+       )
+     ORDER BY c.cart_id DESC LIMIT 1"
+);
 $stmt->bind_param('i', $userId);
 $stmt->execute();
 $cartRow = $stmt->get_result()->fetch_assoc();
@@ -101,7 +111,6 @@ if ($cartRow) {
 $_SESSION['cart'] = $cart_items;
 $cart = $_SESSION['cart'];
 
-// DITO NATIN PROPROSESO YUNG BACK TO LAST VENUE LOGIC:
 $backToVenueUrl = $_SESSION['last_venue_visited'] ?? 'search.php';
 ?>
 
@@ -119,11 +128,6 @@ $backToVenueUrl = $_SESSION['last_venue_visited'] ?? 'search.php';
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <style>
-    /* ==========================================
-       TAGPO PREMIUM LIVE SELECTION CUSTOM UI
-       ========================================== */
-    
-    /* Elegant and Minimalist Back Button Style */
     .btn-back-navigation {
       display: inline-flex;
       align-items: center;
@@ -137,20 +141,15 @@ $backToVenueUrl = $_SESSION['last_venue_visited'] ?? 'search.php';
       text-decoration: none;
       transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    .btn-back-navigation i {
-      transition: transform 0.2s ease;
-    }
+    .btn-back-navigation i { transition: transform 0.2s ease; }
     .btn-back-navigation:hover {
       background-color: #f8fafc;
       border-color: var(--gold, #b7791f);
       color: var(--gold, #b7791f);
       box-shadow: 0 2px 5px rgba(0,0,0,0.03);
     }
-    .btn-back-navigation:hover i {
-      transform: translateX(-3px);
-    }
+    .btn-back-navigation:hover i { transform: translateX(-3px); }
 
-    /* Select All Bar Style */
     .select-all-bar {
       background: #ffffff;
       border: 1px solid rgba(0, 0, 0, 0.08);
@@ -163,7 +162,6 @@ $backToVenueUrl = $_SESSION['last_venue_visited'] ?? 'search.php';
       justify-content: space-between;
     }
 
-    /* Professional Custom Checkbox Container */
     .custom-chk-container {
       display: block;
       position: relative;
@@ -174,8 +172,6 @@ $backToVenueUrl = $_SESSION['last_venue_visited'] ?? 'search.php';
       color: #343a40;
       user-select: none;
     }
-
-    /* Itago ang default browser checkbox */
     .custom-chk-container input {
       position: absolute;
       opacity: 0;
@@ -183,8 +179,6 @@ $backToVenueUrl = $_SESSION['last_venue_visited'] ?? 'search.php';
       height: 0;
       width: 0;
     }
-
-    /* Ang pasadyang modern checkbox box */
     .checkmark {
       position: absolute;
       top: 1px;
@@ -196,32 +190,14 @@ $backToVenueUrl = $_SESSION['last_venue_visited'] ?? 'search.php';
       border-radius: 6px;
       transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     }
-
-    /* Kapag naka-hover */
-    .custom-chk-container:hover input ~ .checkmark {
-      border-color: #1e40af;
-    }
-
-    /* Kapag naka-checked na (Premium Brand Blue fill) */
+    .custom-chk-container:hover input ~ .checkmark { border-color: #1e40af; }
     .custom-chk-container input:checked ~ .checkmark {
       background-color: #1e40af;
       border-color: #1e40af;
       box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.15);
     }
-
-    /* Ang check icon mark indicator */
-    .checkmark:after {
-      content: "";
-      position: absolute;
-      display: none;
-    }
-
-    /* Ipakita kapag naka-checked */
-    .custom-chk-container input:checked ~ .checkmark:after {
-      display: block;
-    }
-
-    /* Porma ng check mark indicator icon */
+    .checkmark:after { content: ""; position: absolute; display: none; }
+    .custom-chk-container input:checked ~ .checkmark:after { display: block; }
     .custom-chk-container .checkmark:after {
       left: 6px;
       top: 2px;
@@ -232,7 +208,6 @@ $backToVenueUrl = $_SESSION['last_venue_visited'] ?? 'search.php';
       transform: rotate(45deg);
     }
 
-    /* Smooth Visual Cards Transition */
     .cart-item-card {
       position: relative;
       border: 1px solid rgba(0, 0, 0, 0.06) !important;
@@ -241,27 +216,21 @@ $backToVenueUrl = $_SESSION['last_venue_visited'] ?? 'search.php';
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
       overflow: hidden;
     }
-    
-    /* Kapag naka-select ang card, bigyan ng subtle premium glow outline */
     .cart-item-card.selected-active {
       border-color: rgba(30, 64, 175, 0.25) !important;
       box-shadow: 0 4px 20px rgba(30, 64, 175, 0.04);
     }
-
-    /* Kapag hindi naka-select (Elegant gray fade out) */
     .cart-item-card.unselected-fade {
       opacity: 0.55;
       background-color: #fcfcfc;
       transform: scale(0.995);
     }
-
     .cart-checkbox-aside {
       display: flex;
       align-items: flex-start;
       padding-top: 4px;
     }
 
-    /* Premium Look Modal Style */
     .tagpo-modal .modal-content { border: none; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
     .tagpo-modal .modal-header { border-bottom: none; padding-top: 24px; }
     .tagpo-modal .modal-footer { border-top: none; padding-bottom: 24px; }
@@ -276,7 +245,6 @@ $backToVenueUrl = $_SESSION['last_venue_visited'] ?? 'search.php';
 
   <?php include 'includes/header.php'; ?>
 
-  <!-- Breadcrumbs at ang Naka-fix na Back Button papunta sa Tiyak na huling Venue Page -->
   <div class="breadcrumb-bar">
     <div class="container d-flex justify-content-between align-items-center">
       <div>
@@ -305,12 +273,10 @@ $backToVenueUrl = $_SESSION['last_venue_visited'] ?? 'search.php';
         </div>
       <?php else: ?>
 
-        <!-- Master Form linked to payment.php -->
         <form action="payment.php" method="POST" id="cart-checkout-form" class="row">
           
           <div class="col-lg-8">
             
-            <!-- SELECTION HEADER BAR: SELECT ALL SECTOR -->
             <div class="select-all-bar fade-up">
               <label class="custom-chk-container mb-0">
                 Select All Bookings
@@ -365,8 +331,6 @@ $backToVenueUrl = $_SESSION['last_venue_visited'] ?? 'search.php';
                 endforeach;
               endif;
 
-              // Prefer the authoritative total stored in session (calculated at add-to-cart),
-              // which already includes add-ons. Fallback to recomputing if not present.
               $venuePrice = $item['venue_price'] ?? 35000;
               if (isset($item['total_price'])) {
                   $itemTotal = (float) $item['total_price'];
@@ -374,10 +338,8 @@ $backToVenueUrl = $_SESSION['last_venue_visited'] ?? 'search.php';
                   $itemTotal = $venuePrice + $addonsTotal;
               }
             ?>
-              <!-- Row Item Card -->
               <div class="cart-item-card p-4 mb-3 fade-up d-flex gap-2" id="card-<?php echo $index; ?>">
                 
-                <!-- CUSTOM CHECKBOX SELECTION -->
                 <div class="cart-checkbox-aside pr-2">
                   <label class="custom-chk-container">
                     <input type="checkbox" 
@@ -441,7 +403,6 @@ $backToVenueUrl = $_SESSION['last_venue_visited'] ?? 'search.php';
             <?php endforeach; ?>
           </div>
 
-          <!-- ORDER SUMMARY SIDEBAR -->
           <div class="col-lg-4 mt-4 mt-lg-0">
             <div class="summary-card shadow-sm position-sticky" style="top: 20px; border-radius: 14px;">
               <h5 class="mb-4 fw-bold" style="color: #2d3748;">Order Summary</h5>
@@ -478,7 +439,6 @@ $backToVenueUrl = $_SESSION['last_venue_visited'] ?? 'search.php';
     </div>
   </div>
 
-  <!-- CONFIRM ACTION MODAL DIALOG -->
   <div class="modal fade tagpo-modal" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">

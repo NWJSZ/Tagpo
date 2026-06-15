@@ -15,9 +15,9 @@ if (!isAdmin()) {
 $currentUser = getCurrentUser();
 $currentPage = 'bookings';
 
-/* ── Reference code helper ──────────────────────────────────── */
-function refCode(int $bookingId): string {
-    return 'TGP-' . strtoupper(substr(md5('tagpo_' . $bookingId), 0, 8));
+/* ── Reference code helper (DB Booking Code implementation) ───────────────── */
+function getDisplayBookingCode($row): string {
+    return !empty($row['booking_code']) ? $row['booking_code'] : 'BKN-' . str_pad($row['booking_id'], 4, '0', STR_PAD_LEFT);
 }
 
 function statusBadgeClass(string $status): string {
@@ -32,15 +32,13 @@ function statusBadgeClass(string $status): string {
     };
 }
 
-/* ── Handle drawer actions (Approve / Reject / Confirm) ─────────── */
+/* ── Handle drawer actions (Approve / Reject / Confirm / Cancel) ─────────── */
 $flash = null;
 
-// AJAX: Handle add event request
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['booking_id'])) {
     $bookingId = (int) $_POST['booking_id'];
     $action    = $_POST['action'];
 
-    // Get the cart_id linked to this booking
     $stmt = $conn->prepare("SELECT cart_id FROM bookings WHERE booking_id = ?");
     $stmt->bind_param('i', $bookingId);
     $stmt->execute();
@@ -88,9 +86,9 @@ $totalBookings = (int) ($conn->query("SELECT COUNT(*) AS c FROM bookings")->fetc
 $pendingPay    = (int) ($conn->query("SELECT COUNT(*) AS c FROM payments WHERE payment_status='pending'")->fetch_assoc()['c'] ?? 0);
 $todaySessions = (int) ($conn->query("SELECT COUNT(*) AS c FROM bookings WHERE event_date = CURDATE()")->fetch_assoc()['c'] ?? 0);
 
-/* ── Fetch bookings ──────────────────────────────────────────── */
+/* ── Fetch bookings ─────────────────────────────────────────── */
 $sql = "
-    SELECT b.booking_id, b.cart_id, b.event_date, b.event_time, b.duration, b.guest_count,
+    SELECT b.booking_id, b.booking_code, b.cart_id, b.event_date, b.event_time, b.duration, b.guest_count,
            b.total_price, b.status AS booking_status,
            u.first_name, u.last_name, u.email,
            v.name AS venue_name,
@@ -107,36 +105,12 @@ $params = [];
 $types  = '';
 
 if ($search !== '') {
-    // If search looks like a reference code (starts with TGP-), search by ref code
-    if (stripos($search, 'TGP-') === 0) {
-        // Get all booking IDs and find matching reference codes
-        $allBookings = $conn->query("SELECT booking_id FROM bookings")->fetch_all(MYSQLI_ASSOC);
-        $matchingIds = [];
-        
-        foreach ($allBookings as $b) {
-            $refCode = refCode($b['booking_id']);
-            if (stripos($refCode, $search) !== false) {
-                $matchingIds[] = $b['booking_id'];
-            }
-        }
-        
-        if (!empty($matchingIds)) {
-            $placeholders = implode(',', array_fill(0, count($matchingIds), '?'));
-            $sql .= " AND b.booking_id IN ($placeholders)";
-            $types .= str_repeat('i', count($matchingIds));
-            $params = array_merge($params, $matchingIds);
-        } else {
-            // No matching reference codes, return empty results
-            $sql .= " AND 0=1";
-        }
-    } else {
-        // Regular search by booking ID, name, email, venue
-        $sql .= " AND (CAST(b.booking_id AS CHAR) LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ? OR v.name LIKE ?)";
-        $like = '%' . $search . '%';
-        array_push($params, $like, $like, $like, $like, $like);
-        $types .= 'sssss';
-    }
+    $sql .= " AND (b.booking_code LIKE ? OR CAST(b.booking_id AS CHAR) LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ? OR v.name LIKE ?)";
+    $like = '%' . $search . '%';
+    array_push($params, $like, $like, $like, $like, $like, $like);
+    $types .= 'ssssss';
 }
+
 if ($statusFilter !== '') {
     $sql .= " AND b.status = ?";
     $params[] = $statusFilter;
@@ -185,7 +159,7 @@ $weekEnd = (clone $weekStart)->modify('+6 days');
 $venues = $conn->query("SELECT id, name, capacity, image_url FROM venues WHERE archived = 0 ORDER BY id")->fetch_all(MYSQLI_ASSOC);
 
 $stmt = $conn->prepare("
-    SELECT b.booking_id, b.venue_id, b.event_date, b.event_time, b.duration,
+    SELECT b.booking_id, b.booking_code, b.venue_id, b.event_date, b.event_time, b.duration,
            u.first_name, u.last_name, e.event_name, b.status
     FROM bookings b
     JOIN users u ON b.user_id = u.id
@@ -199,7 +173,6 @@ $stmt->execute();
 $calBookings = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 
-// Index calendar bookings by venue + date + hour
 $calIndex = [];
 foreach ($calBookings as $cb) {
     $hour = (int) substr($cb['event_time'], 0, 2);
@@ -207,7 +180,7 @@ foreach ($calBookings as $cb) {
     $calIndex[$key][] = $cb;
 }
 
-$calHours = range(8, 20); // 8 AM - 8 PM
+$calHours = range(8, 20);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -248,7 +221,6 @@ $calHours = range(8, 20); // 8 AM - 8 PM
       <div class="alert-bar success"><i class="bi bi-check-circle"></i> <?= htmlspecialchars($flash) ?></div>
     <?php endif; ?>
 
-    <!-- Stat cards -->
     <div class="row g-3 mb-4">
       <div class="col-md-4">
         <div class="stat-card">
@@ -331,10 +303,12 @@ $calHours = range(8, 20); // 8 AM - 8 PM
                       $items = $calIndex[$key] ?? [];
                     ?>
                       <div class="cal-time-cell <?= $dateStr === date('Y-m-d') ? 'today-col' : '' ?>">
-                        <?php foreach ($items as $it): ?>
-                          <span class="cal-booking-chip" title="<?= htmlspecialchars($it['event_name']) ?>"
-                                onclick="window.location='?view=table&q=<?= urlencode($it['first_name']) ?>'">
-                            <?= htmlspecialchars($it['first_name'] . ' - ' . $it['event_name']) ?>
+                        <?php foreach ($items as $it): 
+                          $calCode = getDisplayBookingCode($it);
+                        ?>
+                          <span class="cal-booking-chip" title="<?= htmlspecialchars($calCode . ' - ' . $it['event_name']) ?>"
+                                onclick="window.location='?view=table&q=<?= urlencode($calCode) ?>'">
+                            <?= htmlspecialchars($calCode . ' - ' . $it['first_name']) ?>
                           </span>
                         <?php endforeach; ?>
                       </div>
@@ -358,7 +332,7 @@ $calHours = range(8, 20); // 8 AM - 8 PM
           <form method="get" class="search-box" style="flex:1;">
             <input type="hidden" name="view" value="table">
             <i class="bi bi-search"></i>
-            <input type="text" name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Search by reference, user, or venue...">
+            <input type="text" name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Search by booking code, user, or venue...">
             <button type="submit" style="display:none;"></button>
           </form>
           <form method="get" class="d-flex gap-8">
@@ -379,7 +353,7 @@ $calHours = range(8, 20); // 8 AM - 8 PM
           <table class="data-table">
             <thead>
               <tr>
-                <th>Reference</th>
+                <th>Booking Code</th>
                 <th>Client</th>
                 <th>Venue</th>
                 <th>Date / Time</th>
@@ -403,10 +377,14 @@ $calHours = range(8, 20); // 8 AM - 8 PM
                             . '<div class="info-value">&#8369;' . number_format($a['unit_price'] * $a['quantity'], 2) . '</div></div>';
                     }
                 }
+                
+                $bookingDisplayCode = getDisplayBookingCode($b);
+                $isCancelled = ($b['booking_status'] === 'cancelled');
               ?>
-                <tr class="booking-row"
+                <tr class="booking-row" 
+                    style="<?= $isCancelled ? 'background-color: #f9fafb; opacity: 0.75;' : '' ?>"
                     data-id="<?= (int)$b['booking_id'] ?>"
-                    data-ref="<?= refCode($b['booking_id']) ?>"
+                    data-ref="<?= htmlspecialchars($bookingDisplayCode) ?>"
                     data-date="<?= htmlspecialchars(date('l, F j, Y', strtotime($b['event_date']))) ?>"
                     data-time="<?= htmlspecialchars(date('g:i A', strtotime($b['event_time'])) . ' - ' . date('g:i A', strtotime($b['event_time'] . ' + ' . $b['duration'] . ' hours'))) ?>"
                     data-event="<?= htmlspecialchars($b['event_name']) ?>"
@@ -426,7 +404,8 @@ $calHours = range(8, 20); // 8 AM - 8 PM
                     data-addons-total="<?= number_format($addonsTotal, 2) ?>"
                     data-total="<?= number_format($b['total_price'], 2) ?>"
                     data-addons-html="<?= htmlspecialchars($addonsHtml, ENT_QUOTES) ?>">
-                  <td class="fw-600"><?= refCode($b['booking_id']) ?></td>
+                  
+                  <td class="fw-600" style="color: #4b5563;"><?= htmlspecialchars($bookingDisplayCode) ?></td>
                   <td>
                     <div class="user-name-block">
                       <div class="name"><?= htmlspecialchars($b['first_name'] . ' ' . $b['last_name']) ?></div>
@@ -454,6 +433,9 @@ $calHours = range(8, 20); // 8 AM - 8 PM
 
         <div class="pagination-bar">
           <span>Showing <?= count($bookings) ?> of <?= $totalBookings ?> bookings</span>
+          <div class="pagination-links" style="display: flex; gap: 4px;">
+             <!-- Keep original layouts context placeholder -->
+          </div>
         </div>
       </div>
 
@@ -468,7 +450,7 @@ $calHours = range(8, 20); // 8 AM - 8 PM
   <div class="drawer-header">
     <div>
       <h3>Booking Details</h3>
-      <p id="drawerRef"></p>
+      <p id="drawerRef" style="font-weight: 600; color: #1f2937;"></p>
     </div>
     <button class="drawer-close" onclick="closeDrawer()"><i class="bi bi-x-lg"></i></button>
   </div>
@@ -506,8 +488,7 @@ $calHours = range(8, 20); // 8 AM - 8 PM
     </div>
   </div>
 
-  <!-- Event Creation Modal -->
-  <div class="drawer-footer">
+  <div class="drawer-footer" style="display: flex; flex-direction: column; gap: 8px;">
     <form method="post" id="drawerForm">
       <input type="hidden" name="booking_id" id="formBookingId">
       <input type="hidden" name="action" id="formAction">
@@ -521,6 +502,9 @@ $calHours = range(8, 20); // 8 AM - 8 PM
     <button class="btn-full btn-full-outline" id="btnConfirm" onclick="submitAction('confirm_booking')">
       <i class="bi bi-patch-check me-1"></i> Confirm Booking
     </button>
+    <button class="btn-full btn-full-outline-red" id="btnCancel" onclick="submitAction('cancel_booking')" style="border: 1px solid var(--danger); color: var(--danger); background: transparent; padding: 10px; border-radius: 6px; cursor: pointer;">
+      <i class="bi bi-trash me-1"></i> Cancel Booking
+    </button>
   </div>
 </div>
 
@@ -531,6 +515,9 @@ function closeDrawer() {
 }
 
 function submitAction(action) {
+  if (action === 'cancel_booking' && !confirm('Are you sure you want to cancel this booking?')) {
+      return;
+  }
   document.getElementById('formAction').value = action;
   document.getElementById('drawerForm').submit();
 }
@@ -556,10 +543,10 @@ function openDrawer(row) {
 
   document.getElementById('formBookingId').value = d.id;
 
-  // Toggle action buttons depending on current state
   document.getElementById('btnApprove').style.display = (d.payStatus === 'pending') ? '' : 'none';
   document.getElementById('btnReject').style.display  = (d.payStatus === 'pending') ? '' : 'none';
   document.getElementById('btnConfirm').style.display = (d.status === 'pending') ? '' : 'none';
+  document.getElementById('btnCancel').style.display  = (d.status !== 'cancelled') ? '' : 'none';
 
   document.getElementById('bookingDrawer').classList.add('open');
   document.getElementById('drawerOverlay').classList.add('open');

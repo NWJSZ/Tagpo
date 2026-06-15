@@ -133,6 +133,20 @@ function stars(float $rating): string
   $empty = 5 - $full;
   return str_repeat('★', $full) . str_repeat('☆', $empty);
 }
+
+$addonsQuery = $conn->query(
+    "SELECT a.addon_id, a.addon_name, a.price, e.event_name 
+     FROM addons a 
+     JOIN event e ON a.event_id = e.event_id 
+     WHERE a.archived = 0 
+     ORDER BY a.addon_name ASC"
+);
+$dbAddons = [];
+if ($addonsQuery) {
+    while ($row = $addonsQuery->fetch_assoc()) {
+        $dbAddons[] = $row;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -492,100 +506,23 @@ function stars(float $rating): string
             </div>
 
             <div class="form-group">
-              <label class="d-block mb-2">Add-ons</label>
+  <label class="d-block mb-2">Add-ons</label>
 
-              <div id="no-event-message" class="text-muted small">Please select an event type to view available add-ons.</div>
+  <div id="no-event-message" class="text-muted small">Please select an event type to view available add-ons.</div>
 
-              <div class="addon-group-item wedding-addon" data-event="Wedding" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Catering Service"> Catering Service (+₱8,000)</label>
-              </div>
-              <div class="addon-group-item wedding-addon" data-event="Wedding" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Bridal Car"> Bridal Car (+₱3,500)</label>
-              </div>
-              <div class="addon-group-item wedding-addon" data-event="Wedding" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Floral Arrangement Package"> Floral Arrangement Package (+₱2,500)</label>
-              </div>
-              <div class="addon-group-item wedding-addon" data-event="Wedding" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Wedding Stage Decoration"> Wedding Stage Decoration (+₱4,000)</label>
-              </div>
-              <div class="addon-group-item wedding-addon" data-event="Wedding" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Photo Booth"> Photo Booth (+₱2,500)</label>
-              </div>
-
-              <div class="addon-group-item birthday-addon" data-event="Birthday / Debut" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Catering Service"> Catering Service (+₱6,000)</label>
-              </div>
-              <div class="addon-group-item birthday-addon" data-event="Birthday / Debut" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Balloon & Themed Setup"> Balloon & Themed Setup (+₱2,000)</label>
-              </div>
-              <div class="addon-group-item birthday-addon" data-event="Birthday / Debut" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Photo Booth"> Photo Booth (+₱2,500)</label>
-              </div>
-              <div class="addon-group-item birthday-addon" data-event="Birthday / Debut" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Clown / Event Host"> Clown / Event Host (+₱1,500)</label>
-              </div>
-              <div class="addon-group-item birthday-addon" data-event="Birthday / Debut" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Cake Styling Setup"> Cake Styling Setup (+₱1,000)</label>
-              </div>
-
-              <div class="addon-group-item prom-addon" data-event="Prom / Ball" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="DJ Booth"> DJ Booth (+₱3,000)</label>
-              </div>
-              <div class="addon-group-item prom-addon" data-event="Prom / Ball" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="LED Lights Setup"> LED Lights Setup (+₱2,500)</label>
-              </div>
-              <div class="addon-group-item prom-addon" data-event="Prom / Ball" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Red Carpet Entrance Setup"> Red Carpet Entrance Setup (+₱1,500)</label>
-              </div>
-              <div class="addon-group-item prom-addon" data-event="Prom / Ball" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Photo Booth"> Photo Booth (+₱2,500)</label>
-              </div>
-              <div class="addon-group-item prom-addon" data-event="Prom / Ball" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Emcee / Host"> Emcee / Host (+₱2,000)</label>
-              </div>
-
-              <div class="addon-group-item corporate-addon" data-event="Corporate Event" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Projector & Screen Setup"> Projector & Screen Setup (+₱2,000)</label>
-              </div>
-              <div class="addon-group-item corporate-addon" data-event="Corporate Event" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Sound System"> Sound System (+₱3,000)</label>
-              </div>
-              <div class="addon-group-item corporate-addon" data-event="Corporate Event" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Microphones & Stage Setup"> Microphones & Stage Setup (+₱2,500)</label>
-              </div>
-              <div class="addon-group-item corporate-addon" data-event="Corporate Event" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Coffee Break Catering"> Coffee Break Catering (+₱5,000)</label>
-              </div>
-              <div class="addon-group-item corporate-addon" data-event="Corporate Event" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="LED Display Wall"> LED Display Wall (+₱8,000)</label>
-              </div>
-
-              <div class="addon-group-item reunion-addon" data-event="Reunion" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Buffet Catering"> Buffet Catering (+₱7,000)</label>
-              </div>
-              <div class="addon-group-item reunion-addon" data-event="Reunion" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Photo Booth"> Photo Booth (+₱2,500)</label>
-              </div>
-              <div class="addon-group-item reunion-addon" data-event="Reunion" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Memory Slideshow / Projector"> Memory Slideshow / Projector (+₱1,500)</label>
-              </div>
-              <div class="addon-group-item reunion-addon" data-event="Reunion" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Event Host / Emcee"> Event Host / Emcee (+₱2,000)</label>
-              </div>
-
-              <div class="addon-group-item anniversary-addon" data-event="Anniversary" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Romantic Venue Styling"> Romantic Venue Styling (+₱3,000)</label>
-              </div>
-              <div class="addon-group-item anniversary-addon" data-event="Anniversary" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Floral Arrangement Package"> Floral Arrangement Package (+₱2,000)</label>
-              </div>
-              <div class="addon-group-item anniversary-addon" data-event="Anniversary" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Candle & Lights Setup"> Candle & Lights Setup (+₱1,500)</label>
-              </div>
-              <div class="addon-group-item anniversary-addon" data-event="Anniversary" style="display: none;">
-                <label><input type="checkbox" name="addons[]" value="Live Acoustic Music"> Live Acoustic Music (+₱5,000)</label>
-              </div>
-            </div>
+  <?php if (!empty($dbAddons)): ?>
+    <?php foreach ($dbAddons as $addon): ?>
+      <div class="addon-group-item dynamic-addon" data-event="<?php echo htmlspecialchars($addon['event_name']); ?>" style="display: none;">
+        <label>
+          <input type="checkbox" name="addons[]" value="<?php echo htmlspecialchars($addon['addon_name']); ?>"> 
+          <?php echo htmlspecialchars($addon['addon_name']); ?> (+₱<?php echo number_format($addon['price']); ?>)
+        </label>
+      </div>
+    <?php endforeach; ?>
+  <?php else: ?>
+    <div class="text-muted small">No add-ons available.</div>
+  <?php endif; ?>
+</div>
 
             <button type="submit" class="btn-enquire">
               Add to Cart
@@ -616,7 +553,7 @@ function stars(float $rating): string
   <?php include 'includes/footer.php'; ?>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
+ <script>
     function setTab(el) {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       el.classList.add('active');
@@ -723,19 +660,22 @@ function stars(float $rating): string
 
     function initAddonFilters() {
       const eventSelect = document.querySelector('select[name="event_id"]');
-      const addonItems = document.querySelectorAll('.addon-group-item');
+      // FIX: Ginawa nating '.dynamic-addon' para sigurado nating ang database items ang mahila
+      const addonItems = document.querySelectorAll('.dynamic-addon');
       const noEventMessage = document.getElementById('no-event-message');
 
       if (eventSelect) {
         eventSelect.addEventListener('change', function() {
-          const selectedEventName = this.selectedOptions[0]?.textContent || '';
+          // .trim() para walang whitespace error sa pag-compare ng String text
+          const selectedEventName = this.selectedOptions[0]?.textContent ? this.selectedOptions[0].textContent.trim() : '';
           let countVisible = 0;
 
           addonItems.forEach(item => {
             const checkbox = item.querySelector('input[type="checkbox"]');
             if (checkbox) checkbox.checked = false;
 
-            if (item.getAttribute('data-event') === selectedEventName) {
+            // FIX: Gumamit ng .trim() para kung "Wedding " ang nasa DB, tutugma pa rin sa UI
+            if (item.getAttribute('data-event').trim() === selectedEventName) {
               item.style.display = 'block';
               countVisible++;
             } else {
@@ -797,7 +737,6 @@ function stars(float $rating): string
         if (duration)    duration.addEventListener('change', () => { if(duration.value !== "") clearFieldError(duration); });
         if (guestInput)  guestInput.addEventListener('input', () => { if(guestInput.value !== "" && parseInt(guestInput.value) >= 1) clearFieldError(guestInput); });
 
-
         bookingForm.addEventListener('submit', function(event) {
           let hasError = false;
 
@@ -832,7 +771,6 @@ function stars(float $rating): string
         });
       }
     });
-  </script>
-
+</script>
 </body>
 </html>
