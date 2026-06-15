@@ -98,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <!-- INACTIVITY KICK-OUT NOTIFICATION -->
       <?php if (isset($_GET['session_expired']) && $_GET['session_expired'] === 'inactivity'): ?>
         <div class="auth-alert" style="background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.25);color:#fcd34d;">
-          <i class="fa-solid fa-triangle-exclamation me-2"></i>
+          <i class="fa-solid fa-triangle-exclamation me-2"></i> Your session expired due to inactivity. Please sign in again.
         </div>
       <?php endif; ?>
 
