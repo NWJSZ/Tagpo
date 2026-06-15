@@ -50,7 +50,7 @@ $currentUser = getCurrentUser();
              href="<?php echo $baseUrl; ?>cart.php">
             Cart
             <?php if ($cartCount > 0): ?>
-              <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+              <span class="cart-badge position-absolute top-0 start-100 translate-middle badge rounded-pill">
                 <?php echo $cartCount; ?>
               </span>
             <?php endif; ?>

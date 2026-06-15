@@ -85,6 +85,26 @@ a { transition: color var(--transition); }
 .badge-verified { background: #d1fae5; color: #065f46; }
 .badge-responds { background: #fef3c7; color: #92400e; }
 
+/* Cart badge (custom red) */
+.cart-badge {
+  background: #ff3b30 !important;
+  color: #fff !important;
+  font-size: 0.68rem;
+  padding: 4px 8px;
+  line-height: 1;
+  box-shadow: 0 4px 10px rgba(0,0,0,.12);
+}
+
+/* Custom status badges */
+.badge-confirmed {
+  background: #90ee90 !important; /* light green */
+  color: #000000 !important;
+}
+.badge-paid {
+  background: #90ee90 !important; /* light green */
+  color: #000000 !important;
+}
+
 /* ── FOOTER ── */
 footer { background: linear-gradient(140deg, var(--deep) 0%, #0a1020 100%); color: #cbd5e1; margin-top: 80px; padding-top: 60px; position: relative; overflow: hidden; }
 footer::before { content: ''; position: absolute; width: 400px; height: 400px; border-radius: 50%; background: radial-gradient(circle, rgba(201,168,76,.07) 0%, transparent 70%); bottom: -100px; right: -80px; pointer-events: none; }
@@ -104,6 +124,10 @@ footer .footer-bottom { font-size: 0.8rem; color: #64748b; padding-bottom: 28px;
 .text-gold { color: var(--gold); }
 .text-accent { color: var(--accent); }
 .bg-surface { background: var(--bg); }
+
+/* Light danger text for subtle error/warning labels */
+.text-danger-light { color: rgba(248, 74, 74, 0.85) !important; }
+.text-danger-light i, .text-danger-light .bi { color: rgba(248, 83, 83, 0.85) !important; }
 
 /* ── ANIMATIONS ── */
 @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }

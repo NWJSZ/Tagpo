@@ -73,14 +73,14 @@ if (!empty($bookingIds)) {
 
 // Status badge helper
 function statusBadge(string $status): string {
-    return match($status) {
-        'confirmed' => '<span class="badge rounded-pill bg-success">Confirmed</span>',
-        'pending'   => '<span class="badge rounded-pill bg-warning text-dark">Pending</span>',
-        'cancelled' => '<span class="badge rounded-pill bg-danger">Cancelled</span>',
-        'paid'      => '<span class="badge rounded-pill bg-success">Paid</span>',
-        'failed'    => '<span class="badge rounded-pill bg-danger">Failed</span>',
-        default     => '<span class="badge rounded-pill bg-secondary">' . htmlspecialchars(ucfirst($status)) . '</span>',
-    };
+  return match($status) {
+    'confirmed' => '<span class="badge rounded-pill badge-confirmed">Confirmed</span>',
+    'pending'   => '<span class="badge rounded-pill bg-warning text-dark">Pending</span>',
+    'cancelled' => '<span class="badge rounded-pill bg-danger">Cancelled</span>',
+    'paid'      => '<span class="badge rounded-pill badge-paid">Paid</span>',
+    'failed'    => '<span class="badge rounded-pill bg-danger">Failed</span>',
+    default     => '<span class="badge rounded-pill bg-secondary">' . htmlspecialchars(ucfirst($status)) . '</span>',
+  };
 }
 ?>
 <!DOCTYPE html>
@@ -319,8 +319,8 @@ function statusBadge(string $status): string {
                       <?php endif; ?>
 
                     <?php else: ?>
-                      <div class="text-warning fw-semibold">
-                        <i class="bi bi-exclamation-circle me-1"></i>
+                      <div class="text-danger-light fw-semibold" style="color: #f34a4a !important;">
+                        <i class="bi bi-exclamation-circle me-1" style="color: #f34a4a !important;"></i>
                         Payment not yet completed
                       </div>
                     <?php endif; ?>
