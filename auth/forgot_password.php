@@ -9,44 +9,54 @@ if (isLoggedIn()) { header('Location: ' . $baseUrl . 'index.php'); exit(); }
 
 function sendDirectGmailHTTP($toEmail, $subject, $htmlMessage, $appPassword) {
     $senderEmail = 'nataliepaduhilao@gmail.com';
-    
-    $boundary = uniqid('np', true);
-    $headers = [
-        "From: TAGPO Luxury Venues <$senderEmail>",
-        "To: <$toEmail>",
-        "Subject: $subject",
-        "MIME-Version: 1.0",
-        "Content-Type: text/html; charset=UTF-8"
-    ];
-    
-    $emailBody = implode("\r\n", $headers) . "\r\n\r\n" . $htmlMessage;
-    
-    $smtpServer = "ssl://smtp.gmail.com";
-    $port = 465;
-    
-    $socket = @stream_socket_client("$smtpServer:$port", $errno, $errstr, 15, STREAM_CLIENT_CONNECT, stream_context_create([
-        'ssl' => ['verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true]
-    ]));
-    
+
+    $socket = @stream_socket_client("ssl://smtp.gmail.com:465", $errno, $errstr, 15,
+        STREAM_CLIENT_CONNECT,
+        stream_context_create(['ssl' => [
+            'verify_peer'       => false,
+            'verify_peer_name'  => false,
+            'allow_self_signed' => true
+        ]])
+    );
+
     if (!$socket) return false;
 
-    fgets($socket, 515);
-    fputs($socket, "EHLO localhost\r\n"); fgets($socket, 515);
-    fputs($socket, "AUTH LOGIN\r\n"); fgets($socket, 515);
-    fputs($socket, base64_encode($senderEmail) . "\r\n"); fgets($socket, 515);
-    fputs($socket, base64_encode($appPassword) . "\r\n"); $authResponse = fgets($socket, 515);
-    
-    if (strpos($authResponse, '235') !== 0) {
+    $read = function($s) {
+        $data = '';
+        while ($line = fgets($s, 515)) {
+            $data .= $line;
+            if (substr($line, 3, 1) === ' ') break; // end of multi-line response
+        }
+        return $data;
+    };
+
+    $read($socket); // 220 greeting
+    fputs($socket, "EHLO localhost\r\n");    $read($socket);
+    fputs($socket, "AUTH LOGIN\r\n");        $read($socket);
+    fputs($socket, base64_encode($senderEmail) . "\r\n"); $read($socket);
+    fputs($socket, base64_encode($appPassword) . "\r\n");
+    $authReply = $read($socket);
+
+    if (strpos($authReply, '235') !== 0) {
         fclose($socket);
         return false;
     }
-    
-    fputs($socket, "MAIL FROM:<$senderEmail>\r\n"); fgets($socket, 515);
-    fputs($socket, "RCPT TO:<$toEmail>\r\n"); fgets($socket, 515);
-    fputs($socket, "DATA\r\n"); fgets($socket, 515);
-    fputs($socket, $emailBody . "\r\n.\r\n"); fgets($socket, 515);
-    fputs($socket, "QUIT\r\n"); fclose($socket);
-    
+
+    fputs($socket, "MAIL FROM:<$senderEmail>\r\n"); $read($socket);
+    fputs($socket, "RCPT TO:<$toEmail>\r\n");       $read($socket);
+    fputs($socket, "DATA\r\n");                     $read($socket);
+
+    $headers  = "From: TAGPO Luxury Venues <$senderEmail>\r\n";
+    $headers .= "To: <$toEmail>\r\n";
+    $headers .= "Subject: $subject\r\n";
+    $headers .= "MIME-Version: 1.0\r\n";
+    $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+
+    fputs($socket, $headers . "\r\n" . $htmlMessage . "\r\n.\r\n");
+    $read($socket);
+
+    fputs($socket, "QUIT\r\n");
+    fclose($socket);
     return true;
 }
 
