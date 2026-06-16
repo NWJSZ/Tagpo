@@ -87,3 +87,25 @@ BEGIN
 END$$
 
 DELIMITER ;
+
+
+
+SELECT 
+    b.booking_id,
+    u.first_name,
+    u.last_name,
+    v.name AS venue_name,
+    e.event_name,
+    b.event_date
+FROM bookings b
+JOIN users u ON b.user_id = u.id
+JOIN venues v ON b.venue_id = v.id
+JOIN event e ON b.event_id = e.event_id;
+
+
+SELECT 
+    v.name AS venue_name,
+    COUNT(b.booking_id) AS total_bookings
+FROM venues v
+LEFT JOIN bookings b ON v.id = b.venue_id
+GROUP BY v.name;
