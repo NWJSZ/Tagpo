@@ -27,10 +27,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Binago ang check kung empty ang mga required fields
     if ($firstName === '' || $lastName === '' || $email === '' || $password === '' || $phone === '') {
         $error = "All fields are required!";
+    } elseif (!preg_match('/^[a-zA-Z\s]+$/', $firstName) || !preg_match('/^[a-zA-Z\s]+$/', $lastName)) {
+        $error = "Name must contain letters only.";
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = "Invalid email format!";
-    } elseif (strlen($password) < 6) {
-        $error = "Password must be at least 6 characters!";
+    } elseif (!preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/', $password)) {
+        $error = "Password must be at least 8 characters, with uppercase, lowercase, a number, and a special character.";
     } elseif (strlen($phone) !== 10) {
         $error = "Phone number must be exactly 10 digits.";
     } elseif ($password !== $confirmPassword) {
@@ -139,15 +141,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             <label class="auth-label">First Name</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fa-regular fa-user"></i></span>
-                                <input type="text" name="first_name" class="form-control" placeholder="John" value="<?php echo htmlspecialchars($_POST['first_name'] ?? ''); ?>" required>
+                                <input type="text" id="first-name-input" name="first_name" class="form-control" placeholder="John" value="<?php echo htmlspecialchars($_POST['first_name'] ?? ''); ?>" required>
                             </div>
+                            <div id="first-name-feedback" style="font-size: 0.78rem; margin-top: 4px; display: none;"></div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="auth-label">Last Name</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fa-regular fa-user"></i></span>
-                                <input type="text" name="last_name" class="form-control" placeholder="Doe" value="<?php echo htmlspecialchars($_POST['last_name'] ?? ''); ?>" required>
+                                <input type="text" id="last-name-input" name="last_name" class="form-control" placeholder="Doe" value="<?php echo htmlspecialchars($_POST['last_name'] ?? ''); ?>" required>
                             </div>
+                            <div id="last-name-feedback" style="font-size: 0.78rem; margin-top: 4px; display: none;"></div>
                         </div>
                     </div>
 
@@ -177,6 +181,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         <i class="fa-regular fa-eye"></i>
                         </span>
                     </div>
+                    <div id="pw-strength-bar-wrap" style="margin-top: 6px; display: none;">
+                        <div style="height: 4px; border-radius: 4px; background: rgba(0,0,0,0.08); overflow: hidden;">
+                            <div id="pw-strength-bar" style="height: 100%; width: 0%; border-radius: 4px; transition: width 0.3s, background 0.3s;"></div>
+                        </div>
+                    </div>
+                    <div id="pw-feedback" style="font-size: 0.78rem; margin-top: 4px; display: none;"></div>
                     </div>
 
                     <div class="mb-3">
@@ -211,6 +221,51 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         const phoneFeedback = document.getElementById('phone-feedback');
         const submitBtn = document.getElementById('submit-btn');
 
+        // --- Name Validation ---
+        const firstNameInput = document.getElementById('first-name-input');
+        const firstNameFeedback = document.getElementById('first-name-feedback');
+        const lastNameInput = document.getElementById('last-name-input');
+        const lastNameFeedback = document.getElementById('last-name-feedback');
+
+        function validateName(input, feedbackEl) {
+            const val = input.value;
+            const lettersOnly = /^[a-zA-Z\s]*$/;
+            if (val.length === 0) {
+                feedbackEl.style.display = 'none';
+                return true;
+            }
+            if (!lettersOnly.test(val)) {
+                feedbackEl.style.display = 'block';
+                feedbackEl.style.color = '#ef4444';
+                feedbackEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-1"></i> Name must contain letters only.';
+                return false;
+            } else {
+                feedbackEl.style.display = 'none';
+                return true;
+            }
+        }
+
+        function updateSubmitState() {
+            const firstValid = /^[a-zA-Z\s]*$/.test(firstNameInput.value);
+            const lastValid = /^[a-zA-Z\s]*$/.test(lastNameInput.value);
+            if (!firstValid || !lastValid) {
+                submitBtn.disabled = true;
+            } else if (phoneInput.value.length === 10 || phoneInput.value.length === 0) {
+                submitBtn.disabled = false;
+            }
+        }
+
+        firstNameInput.addEventListener('input', function() {
+            validateName(firstNameInput, firstNameFeedback);
+            updateSubmitState();
+        });
+
+        lastNameInput.addEventListener('input', function() {
+            validateName(lastNameInput, lastNameFeedback);
+            updateSubmitState();
+        });
+        // --- End Name Validation ---
+
         function validatePhone() {
             // 1. Numbers Only Rule
             let val = phoneInput.value.replace(/\D/g, '');
@@ -237,6 +292,75 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
 
         phoneInput.addEventListener('input', validatePhone);
+
+        // --- Password Validation ---
+        const pwInput = document.getElementById('pw-signup');
+        const pwFeedback = document.getElementById('pw-feedback');
+        const pwStrengthBar = document.getElementById('pw-strength-bar');
+        const pwStrengthBarWrap = document.getElementById('pw-strength-bar-wrap');
+
+        function validatePassword() {
+            const val = pwInput.value;
+
+            if (val.length === 0) {
+                pwFeedback.style.display = 'none';
+                pwStrengthBarWrap.style.display = 'none';
+                updateSubmitState();
+                return;
+            }
+
+            const hasUpper   = /[A-Z]/.test(val);
+            const hasLower   = /[a-z]/.test(val);
+            const hasNumber  = /[0-9]/.test(val);
+            const hasSpecial = /[\W_]/.test(val);
+            const hasLength  = val.length >= 8;
+
+            const score = [hasUpper, hasLower, hasNumber, hasSpecial, hasLength].filter(Boolean).length;
+
+            // Strength bar
+            pwStrengthBarWrap.style.display = 'block';
+            const widths  = ['20%', '40%', '60%', '80%', '100%'];
+            const colors  = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981'];
+            pwStrengthBar.style.width  = widths[score - 1] || '0%';
+            pwStrengthBar.style.background = colors[score - 1] || '#ef4444';
+
+            // Feedback message
+            pwFeedback.style.display = 'block';
+            if (score === 5) {
+                pwFeedback.style.color = '#10b981';
+                pwFeedback.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i> Strong password!';
+            } else {
+                const missing = [];
+                if (!hasLength)  missing.push('8+ characters');
+                if (!hasUpper)   missing.push('uppercase letter');
+                if (!hasLower)   missing.push('lowercase letter');
+                if (!hasNumber)  missing.push('number');
+                if (!hasSpecial) missing.push('special character');
+                pwFeedback.style.color = '#ef4444';
+                pwFeedback.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-1"></i> Missing: ' + missing.join(', ') + '.';
+            }
+
+            updateSubmitState();
+        }
+
+        pwInput.addEventListener('input', validatePassword);
+        // --- End Password Validation ---
+
+        // Patch updateSubmitState to also check password
+        const _origUpdateSubmitState = updateSubmitState;
+        function updateSubmitState() {
+            const firstValid = /^[a-zA-Z\s]*$/.test(firstNameInput.value);
+            const lastValid  = /^[a-zA-Z\s]*$/.test(lastNameInput.value);
+            const pwVal      = pwInput ? pwInput.value : '';
+            const pwValid    = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[\W_]).{8,}$/.test(pwVal) || pwVal.length === 0;
+            const phoneLen   = phoneInput.value.length;
+
+            if (!firstValid || !lastValid || !pwValid || (phoneLen > 0 && phoneLen !== 10)) {
+                submitBtn.disabled = true;
+            } else {
+                submitBtn.disabled = false;
+            }
+        }
     });
     </script>
 </body>
