@@ -6,7 +6,6 @@
   <div class="container">
     <div class="row g-5">
 
-      <!-- Brand col -->
       <div class="col-lg-4 col-md-6">
         <div class="footer-brand">Tagpo<span>.</span></div>
         <p class="mt-2 mb-4">
@@ -14,29 +13,26 @@
         </p>
       </div>
 
-      <!-- Explore -->
       <div class="col-lg-2 col-md-3 col-6">
         <h6>Explore</h6>
         <ul class="list-unstyled">
           <li><a href="search.php">All Venues</a></li>
-          <li><a href="search.php">Wedding Venues</a></li>
-          <li><a href="search.php">Birthday Venues</a></li>
-          <li><a href="search.php">Prom Venues</a></li>
-          <li><a href="search.php">Corporate Events</a></li>
+          <li><a href="search.php?category=wedding">Wedding Venues</a></li>
+          <li><a href="search.php?category=birthday">Birthday Venues</a></li>
+          <li><a href="search.php?category=prom">Prom Venues</a></li>
+          <li><a href="search.php?category=corporate">Corporate Events</a></li>
         </ul>
       </div>
 
-      <!-- Company -->
       <div class="col-lg-2 col-md-3 col-6">
         <h6>Company</h6>
         <ul class="list-unstyled">
-          <li><a href="#">About Us</a></li>
-          <li><a href="#">List Your Venue</a></li>
-          <li><a href="#">Contact Us</a></li>
+          <li><a href="info.php?page=about">About Us</a></li>
+          <li><a href="info.php?page=list-venue">List Your Venue</a></li>
+          <li><a href="info.php?page=contact">Contact Us</a></li>
         </ul>
       </div>
 
-      <!-- Contact -->
       <div class="col-lg-3 col-md-6">
         <h6>Get In Touch</h6>
         <ul class="list-unstyled">
@@ -64,9 +60,9 @@
         &copy; <?php echo date('Y'); ?> Tagpo. All rights reserved.
       </div>
       <div class="col-md-6 text-md-end">
-        <a href="#" class="me-3">Privacy Policy</a>
-        <a href="#" class="me-3">Terms of Service</a>
-        <a href="#">Cookie Policy</a>
+        <a href="info.php?page=privacy" class="me-3">Privacy Policy</a>
+        <a href="info.php?page=terms" class="me-3">Terms of Service</a>
+        <a href="info.php?page=cookie">Cookie Policy</a>
       </div>
     </div>
 

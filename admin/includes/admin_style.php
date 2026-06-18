@@ -9,10 +9,10 @@
 :root {
   --sidebar-w: 248px;
   --topbar-h: 64px;
-  --green:   #3d7a3a;
+  --green:   #174fc7;
   --green-lt:#e8f5e4;
   --green-md:#5a9e55;
-  --olive:   #4a5c2f;
+  --olive:   #174fc7;
   --surface: #ffffff;
   --bg:      #f5f6f4;
   --border:  #e5e7e2;
