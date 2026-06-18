@@ -610,8 +610,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
               <label class="form-label">Send Payment To</label>
               <select class="form-select" id="gcash_account_select" onchange="fillGcashAccount(this)">
                 <option value="" disabled selected>-- Select Admin GCash Account --</option>
-                <option value="09171234567|Juan dela Cruz">09171234567 — Juan dela Cruz</option>
-                <option value="09281234567|Maria Santos">09281234567 — Maria Santos</option>
+                <option value="09686347062|Jen Mae Ilao">09686347062 — Jen Mae Ilao</option>
+                <option value="09053731204|Natalie Paduhilao">09053731204 — Natalie Paduhilao</option>
+                <option value="09764344103|Wayne Tanglao">09764344103 — Wayne Tanglao</option>
                 <option value="09391234567|Admin TAGPO">09391234567 — Admin TAGPO</option>
               </select>
               <div class="mt-2 p-2 rounded" id="gcash_account_display" style="display:none; background:#e8f4fd; border:1px solid #b8daff;">
