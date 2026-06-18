@@ -173,9 +173,18 @@ body {
 }
 
 .auth-panel-right .auth-password-toggle {
+  background: rgba(255, 255, 255, .06);
+  border: 1.5px solid rgba(255, 255, 255, .1);
   border-left: none;
+  color: rgba(255, 255, 255, .4);
   border-radius: 0 var(--radius) var(--radius) 0;
   cursor: pointer;
+  transition: all var(--transition);
+}
+
+.auth-panel-right .auth-password-toggle:hover {
+  background: rgba(255, 255, 255, .1);
+  color: rgba(255, 255, 255, .7);
 }
 
 .auth-panel-right .input-group:focus-within .input-group-text {
