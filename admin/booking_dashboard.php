@@ -228,7 +228,7 @@ $currentPage = 'reports'; // Flag para sa sidebar navigation active highlight st
                 <p class="text-muted m-0 mt-1" style="font-size: 13px;">Analytical Business Intelligence Ledger &bull; Grouped Report Outputs</p>
             </div>
             <div class="text-end no-print">
-                <button onclick="window.print();" class="btn btn-success fw-semibold px-3 py-2">
+                <button onclick="window.print();" class="btn btn-primary fw-semibold px-3 py-2">
                     <i class="bi bi-printer-fill me-2"></i> Print Report / Save PDF
                 </button>
             </div>
@@ -290,7 +290,7 @@ $currentPage = 'reports'; // Flag para sa sidebar navigation active highlight st
             </div>
         </div>
 
-        <div class="mb-4 bg-white p-3 rounded shadow-sm border-start border-4 border-success d-flex justify-content-between align-items-center">
+        <div class="mb-4 bg-white p-3 rounded shadow-sm border-start border-4 border-primary d-flex justify-content-between align-items-center">
             <div>
                 <span class="fw-bold text-uppercase text-dark" style="font-size:14px;">
                     <?php
@@ -319,7 +319,7 @@ $currentPage = 'reports'; // Flag para sa sidebar navigation active highlight st
                 <div class="card shadow-sm border-0 h-100 bg-white">
                     <div class="card-body p-3">
                         <div class="text-uppercase tracking-wider text-muted fw-bold mb-1" style="font-size: 11px;">Actual Cash Collected</div>
-                        <h4 class="fw-bold text-success m-0">₱<?= number_format($metrics_result['total_actual_cash_received'], 2) ?></h4>
+                        <h4 class="fw-bold text-primary m-0">₱<?= number_format($metrics_result['total_actual_cash_received'], 2) ?></h4>
                     </div>
                 </div>
             </div>
