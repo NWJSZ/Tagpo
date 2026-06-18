@@ -12,12 +12,6 @@
         <p class="mt-2 mb-4">
           Discover and book unforgettable venues for weddings, birthdays, proms, and corporate events across the Philippines.
         </p>
-        <div class="footer-social">
-          <a href="#" title="Facebook"><i class="bi bi-facebook"></i></a>
-          <a href="#" title="Instagram"><i class="bi bi-instagram"></i></a>
-          <a href="#" title="TikTok"><i class="bi bi-tiktok"></i></a>
-          <a href="#" title="YouTube"><i class="bi bi-youtube"></i></a>
-        </div>
       </div>
 
       <!-- Explore -->
