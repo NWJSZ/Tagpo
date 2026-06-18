@@ -37,23 +37,23 @@ $venueRows = $conn->query("
 $amenitiesByVenue = [];
 $amenityRows = $conn->query("SELECT a.venue_id, a.amenity_name FROM amenities a JOIN venues v ON a.venue_id = v.id WHERE v.archived = 0")->fetch_all(MYSQLI_ASSOC);
 foreach ($amenityRows as $row) {
-    $amenitiesByVenue[$row['venue_id']][] = $row['amenity_name'];
+  $amenitiesByVenue[$row['venue_id']][] = $row['amenity_name'];
 }
 
 $venues = [];
 foreach ($venueRows as $v) {
-    $tags = $amenitiesByVenue[$v['id']] ?? [];
-    $venues[] = [
-        'id'       => (int) $v['id'],
-        'name'     => $v['name'],
-        'location' => $v['location'],
-        'price'    => number_format($v['price'], 0),
-        'cap'      => (int) $v['capacity'],
-        'rating'   => $v['review_count'] > 0 ? round($v['avg_rating'], 1) : 5.0,
-        'reviews'  => (int) $v['review_count'],
-        'tag'      => !empty($tags) ? implode(' · ', array_slice($tags, 0, 2)) : 'Featured Venue',
-        'image'    => $v['image_url'] ?: 'assets/images/default-venue.jpg',
-    ];
+  $tags = $amenitiesByVenue[$v['id']] ?? [];
+  $venues[] = [
+    'id'       => (int) $v['id'],
+    'name'     => $v['name'],
+    'location' => $v['location'],
+    'price'    => number_format($v['price'], 0),
+    'cap'      => (int) $v['capacity'],
+    'rating'   => $v['review_count'] > 0 ? round($v['avg_rating'], 1) : 5.0,
+    'reviews'  => (int) $v['review_count'],
+    'tag'      => !empty($tags) ? implode(' · ', array_slice($tags, 0, 2)) : 'Featured Venue',
+    'image'    => $v['image_url'] ?: 'assets/images/default-venue.jpg',
+  ];
 }
 
 // Filter venues by location if search parameter exists
@@ -238,38 +238,56 @@ if (!empty($location)) {
       <?php endforeach; ?>
     </div>
 
-    <div id="features" class="feature-strip rounded-3 mb-5">
-      <div class="row g-0 justify-content-center">
-        <div class="col-md-3 col-6">
-          <div class="feature-item">
-            <div class="feature-icon">🔍</div>
-            <h6>Easy Search</h6>
-            <p>Filter by location, capacity, and budget in seconds.</p>
-          </div>
+<!-- Features Strip — Upgraded to Premium Bootstrap Icons with Sharp Editorial Corners -->
+<div id="features" class="feature-strip rounded-0 mb-5" style="background-color: #ffffff; border: 1px solid rgba(13, 35, 29, 0.08);">
+  <div class="row g-0 justify-content-center text-center">
+    
+    <!-- Easy Search -->
+    <div class="col-md-3 col-6">
+      <div class="feature-item p-4">
+        <div class="feature-icon mb-3">
+          <i class="bi bi-search" style="font-size: 1.5rem; color: #d4af37;"></i>
         </div>
-        <div class="col-md-3 col-6">
-          <div class="feature-item">
-            <div class="feature-icon">✅</div>
-            <h6>Verified Venues</h6>
-            <p>Every venue is personally reviewed and verified.</p>
-          </div>
-        </div>
-        <div class="col-md-3 col-6">
-          <div class="feature-item">
-            <div class="feature-icon">💬</div>
-            <h6>Free Enquiry</h6>
-            <p>Message venues directly — no booking fees, ever.</p>
-          </div>
-        </div>
-        <div class="col-md-3 col-6">
-          <div class="feature-item">
-            <div class="feature-icon">🛡️</div>
-            <h6>Secure Booking</h6>
-            <p>Your event details and payments are always protected.</p>
-          </div>
-        </div>
+        <h6 class="fw-bold" style="color: #0d231d; font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: 0.05em;">Easy Search</h6>
+        <p class="text-muted small mb-0 px-2">Filter by location, capacity, and budget in seconds.</p>
       </div>
     </div>
+    
+    <!-- Verified Venues -->
+    <div class="col-md-3 col-6">
+      <div class="feature-item p-4" style="border-left: 1px solid rgba(13, 35, 29, 0.05);">
+        <div class="feature-icon mb-3">
+          <i class="bi bi-patch-check" style="font-size: 1.5rem; color: #d4af37;"></i>
+        </div>
+        <h6 class="fw-bold" style="color: #0d231d; font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: 0.05em;">Verified Venues</h6>
+        <p class="text-muted small mb-0 px-2">Every venue is personally reviewed and verified.</p>
+      </div>
+    </div>
+    
+    <!-- Free Enquiry -->
+    <div class="col-md-3 col-6">
+      <div class="feature-item p-4" style="border-left: 1px solid rgba(13, 35, 29, 0.05);">
+        <div class="feature-icon mb-3">
+          <i class="bi bi-chat-left-text" style="font-size: 1.5rem; color: #d4af37;"></i>
+        </div>
+        <h6 class="fw-bold" style="color: #0d231d; font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: 0.05em;">Free Enquiry</h6>
+        <p class="text-muted small mb-0 px-2">Message venues directly — no booking fees, ever.</p>
+      </div>
+    </div>
+    
+    <!-- Secure Booking -->
+    <div class="col-md-3 col-6">
+      <div class="feature-item p-4" style="border-left: 1px solid rgba(13, 35, 29, 0.05);">
+        <div class="feature-icon mb-3">
+          <i class="bi bi-shield-check" style="font-size: 1.5rem; color: #d4af37;"></i>
+        </div>
+        <h6 class="fw-bold" style="color: #0d231d; font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: 0.05em;">Secure Booking</h6>
+        <p class="text-muted small mb-0 px-2">Your event details and payments are always protected.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
   </div>
 
   <section id="about" class="about-section">
