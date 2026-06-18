@@ -608,7 +608,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
 
             <div class="mb-3">
               <label class="form-label">Send Payment To</label>
-              <select class="form-select" id="gcash_account_select" onchange="fillGcashAccount(this)">
+              <select class="form-select" id="gcash_account_select" onchange="fillGcashAccount(this)" required>
                 <option value="" disabled selected>-- Select Admin GCash Account --</option>
                 <option value="09686347062|Jen Mae Ilao">09686347062 — Jen Mae Ilao</option>
                 <option value="09053731204|Natalie Paduhilao">09053731204 — Natalie Paduhilao</option>
@@ -658,6 +658,11 @@ function updatePaymentFields() {
   const method = document.getElementById('method_select').value;
   document.getElementById('card_section').style.display  = method === 'card'  ? 'block' : 'none';
   document.getElementById('gcash_section').style.display = method === 'gcash' ? 'block' : 'none';
+  
+  if (method !== 'gcash') {
+    document.getElementById('gcash_account_select').value = '';
+    document.getElementById('gcash_account_display').style.display = 'none';
+  }
 }
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -760,6 +765,14 @@ document.addEventListener('DOMContentLoaded', function () {
       if (cvvInput.value.length !== 3) { e.preventDefault(); alert('CVV must be 3 digits.'); return; }
     }
     if (method === 'gcash') {
+      const gcashAccountSelect = document.getElementById('gcash_account_select');
+      if (!gcashAccountSelect.value) {
+        e.preventDefault();
+        alert('Please select an admin GCash account to send payment to.');
+        gcashAccountSelect.focus();
+        return;
+      }
+      
       const g = gcashInput.value.replace(/\D/g, '');
       if (g.length !== 11) { e.preventDefault(); alert('GCash number must be 11 digits.'); return; }
     }
