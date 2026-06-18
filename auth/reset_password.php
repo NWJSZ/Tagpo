@@ -87,11 +87,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <label class="auth-label">New Password</label>
           <div class="input-group">
             <span class="input-group-text"><i class="fa-solid fa-lock"></i></span>
-            <input type="password" name="password" id="pw-new" class="form-control" placeholder="Min. 6 characters" required>
+            <input type="password" name="password" id="pw-new" class="form-control" placeholder="Min. 8 characters" required>
             <button type="button" class="input-group-text auth-password-toggle" onclick="togglePwd('pw-new', this)">
               <i class="fa-regular fa-eye"></i>
             </button>
           </div>
+          <div id="pw-strength-bar-wrap" style="margin-top: 6px; display: none;">
+            <div style="height: 4px; border-radius: 4px; background: rgba(0,0,0,0.08); overflow: hidden;">
+              <div id="pw-strength-bar" style="height: 100%; width: 0%; transition: all 0.3s ease;"></div>
+            </div>
+          </div>
+          <div id="pw-feedback" style="font-size: 0.78rem; margin-top: 4px; display: none;"></div>
         </div>
 
         <div class="mb-4">
@@ -103,6 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               <i class="fa-regular fa-eye"></i>
             </button>
           </div>
+          <div id="pw-confirm-feedback" style="font-size: 0.78rem; margin-top: 4px; display: none;"></div>
         </div>
         
         <button type="submit" class="btn-auth-submit">
@@ -114,5 +121,95 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../assets/js/loginsignup.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const pwInput = document.getElementById('pw-new');
+    const pwConfirmInput = document.getElementById('pw-confirm-new');
+    const pwFeedback = document.getElementById('pw-feedback');
+    const pwConfirmFeedback = document.getElementById('pw-confirm-feedback');
+    const pwStrengthBar = document.getElementById('pw-strength-bar');
+    const pwStrengthBarWrap = document.getElementById('pw-strength-bar-wrap');
+    const submitBtn = document.querySelector('.btn-auth-submit');
+
+    function validatePassword() {
+        const val = pwInput.value;
+
+        if (val.length === 0) {
+            pwFeedback.style.display = 'none';
+            pwStrengthBarWrap.style.display = 'none';
+            checkPasswordMatch();
+            return;
+        }
+
+        const hasUpper   = /[A-Z]/.test(val);
+        const hasLower   = /[a-z]/.test(val);
+        const hasNumber  = /[0-9]/.test(val);
+        const hasSpecial = /[\W_]/.test(val);
+        const hasLength  = val.length >= 8;
+
+        const score = [hasUpper, hasLower, hasNumber, hasSpecial, hasLength].filter(Boolean).length;
+
+        // Strength bar
+        pwStrengthBarWrap.style.display = 'block';
+        const widths  = ['20%', '40%', '60%', '80%', '100%'];
+        const colors  = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981'];
+        pwStrengthBar.style.width  = widths[score - 1] || '0%';
+        pwStrengthBar.style.background = colors[score - 1] || '#ef4444';
+
+        // Feedback message
+        pwFeedback.style.display = 'block';
+        if (score === 5) {
+            pwFeedback.style.color = '#10b981';
+            pwFeedback.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i> Strong password!';
+        } else {
+            const missing = [];
+            if (!hasLength)  missing.push('8+ characters');
+            if (!hasUpper)   missing.push('uppercase letter');
+            if (!hasLower)   missing.push('lowercase letter');
+            if (!hasNumber)  missing.push('number');
+            if (!hasSpecial) missing.push('special character');
+            pwFeedback.style.color = '#ef4444';
+            pwFeedback.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-1"></i> Missing: ' + missing.join(', ') + '.';
+        }
+
+        checkPasswordMatch();
+    }
+
+    function checkPasswordMatch() {
+        if (pwConfirmInput.value.length === 0) {
+            pwConfirmFeedback.style.display = 'none';
+            updateSubmitState();
+            return;
+        }
+
+        pwConfirmFeedback.style.display = 'block';
+        if (pwInput.value === pwConfirmInput.value) {
+            pwConfirmFeedback.style.color = '#10b981';
+            pwConfirmFeedback.innerHTML = '<i class="fa-solid fa-circle-check me-1"></i> Passwords match!';
+        } else {
+            pwConfirmFeedback.style.color = '#ef4444';
+            pwConfirmFeedback.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-1"></i> Passwords do not match.';
+        }
+
+        updateSubmitState();
+    }
+
+    function updateSubmitState() {
+        const pwVal = pwInput.value;
+        const pwConfirmVal = pwConfirmInput.value;
+        const pwValid = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[\W_]).{8,}$/.test(pwVal);
+        const pwsMatch = pwVal === pwConfirmVal && pwVal.length > 0;
+
+        if (!pwValid || !pwsMatch) {
+            submitBtn.disabled = true;
+        } else {
+            submitBtn.disabled = false;
+        }
+    }
+
+    pwInput.addEventListener('input', validatePassword);
+    pwConfirmInput.addEventListener('input', checkPasswordMatch);
+});
+</script>
 </body>
 </html>
