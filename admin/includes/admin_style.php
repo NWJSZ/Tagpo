@@ -735,10 +735,129 @@ body {
 .flex-wrap { flex-wrap: wrap; }
 .mb-3 { margin-bottom: 16px; }
 .mt-1 { margin-top: 4px; }
+
+/* ══════════════════════════════════════════════════════
+   ADMIN MOBILE/TABLET RESPONSIVE
+   Sidebar → off-canvas overlay on small screens.
+   Tables → horizontal scroll. Content → full-width.
+══════════════════════════════════════════════════════ */
+
+/* Hamburger button — hidden on desktop */
+.sidebar-toggle {
+  display: none;
+  position: fixed;
+  top: 14px; left: 14px;
+  z-index: 500;
+  width: 38px; height: 38px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: var(--text);
+  box-shadow: var(--shadow);
+  transition: background var(--transition);
+}
+.sidebar-toggle:hover { background: var(--bg); }
+
+/* Overlay behind open sidebar */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.35);
+  z-index: 440;
+}
+.sidebar-overlay.open { display: block; }
+
+@media (max-width: 991.98px) {
+
+  .sidebar-toggle { display: flex; }
+
+  /* Sidebar: slides in from left as overlay */
+  .admin-sidebar {
+    transform: translateX(-100%);
+    transition: transform .28s cubic-bezier(.4,0,.2,1);
+    z-index: 450;
+    box-shadow: none;
+  }
+  .admin-sidebar.sidebar-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0,0,0,.12);
+  }
+
+  /* Main: full width since sidebar is off-canvas */
+  .admin-main { margin-left: 0; }
+
+  /* Topbar: starts at left:0, pad left for hamburger */
+  .admin-topbar {
+    left: 0;
+    padding: 0 16px 0 60px;
+  }
+
+  /* Content: tighter padding */
+  .admin-content { padding: 20px 16px 32px; }
+
+  /* Hide date pill to save topbar space */
+  .topbar-date { display: none; }
+
+  /* Tables: scroll horizontally instead of squishing */
+  .panel-card { overflow: visible; }
+  .data-table  { min-width: 620px; }
+  .panel-card > .data-table,
+  .panel-card > div > .data-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Filter toolbar: wrap filters */
+  .filter-toolbar { flex-wrap: wrap; }
+  .filter-toolbar .search-box { min-width: 100%; flex: 1 1 100%; }
+
+  /* Side drawer: full screen on mobile */
+  .side-drawer { width: 100%; max-width: 100%; }
+
+  /* Page header with flex: stack vertically */
+  .page-header.d-flex {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 10px;
+  }
+
+  /* Panel card header: stack h2 + action btn */
+  .panel-card-header {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 8px;
+  }
+
+  /* Calendar: scrollable */
+  .cal-grid     { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .cal-timeline { min-width: 480px; }
+}
+
+@media (max-width: 767px) {
+  .admin-content { padding: 16px 12px 24px; }
+  .admin-topbar  { padding: 0 12px 0 56px; }
+  .topbar-title  { font-size: 15px; }
+  .page-header h1{ font-size: 20px; }
+  .stat-value    { font-size: 22px; }
+  .stat-icon     { width: 40px; height: 40px; font-size: 17px; }
+  .stat-card     { padding: 14px; gap: 12px; }
+
+  .pagination-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
 </style>
 
 <script>
-  // Enable search form submission on Enter key
+  // Search form: submit on Enter
   document.addEventListener('DOMContentLoaded', function() {
     const searchForms = document.querySelectorAll('.search-box');
     searchForms.forEach(form => {
@@ -752,5 +871,44 @@ body {
         });
       }
     });
+
+    // ── Sidebar mobile toggle ──────────────────────────────
+    // Inject hamburger button and overlay into the page
+    const toggle = document.createElement('button');
+    toggle.className = 'sidebar-toggle';
+    toggle.setAttribute('aria-label', 'Toggle menu');
+    toggle.innerHTML = '<i class="bi bi-list"></i>';
+    document.body.prepend(toggle);
+
+    const overlay = document.createElement('div');
+    overlay.className = 'sidebar-overlay';
+    overlay.id = 'sidebarOverlay';
+    document.body.prepend(overlay);
+
+    const sidebar = document.getElementById('adminSidebar');
+
+    function openSidebar() {
+      sidebar.classList.add('sidebar-open');
+      overlay.classList.add('open');
+      toggle.innerHTML = '<i class="bi bi-x-lg"></i>';
+    }
+    function closeSidebar() {
+      sidebar.classList.remove('sidebar-open');
+      overlay.classList.remove('open');
+      toggle.innerHTML = '<i class="bi bi-list"></i>';
+    }
+
+    toggle.addEventListener('click', function() {
+      sidebar.classList.contains('sidebar-open') ? closeSidebar() : openSidebar();
+    });
+
+    overlay.addEventListener('click', closeSidebar);
+
+    // Close sidebar when a nav link is clicked (navigates away)
+    if (sidebar) {
+      sidebar.querySelectorAll('.sidebar-link').forEach(link => {
+        link.addEventListener('click', closeSidebar);
+      });
+    }
   });
 </script>

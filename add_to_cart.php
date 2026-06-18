@@ -79,6 +79,31 @@ if ($eventId === null) {
     die('Invalid event type selected. Please choose a valid event type.');
 }
 
+// ── REVISED: OVERLAP PROTECTION SYSTEM (ENGLISH POP-UP) ──────────────────────
+// Check if a confirmed or paid booking already exists for this slot.
+$checkOverlapStmt = $conn->prepare(
+    "SELECT booking_id FROM bookings 
+     WHERE venue_id = ? 
+       AND event_date = ? 
+       AND event_time = ? 
+       AND status IN ('confirmed', 'paid') 
+     LIMIT 1"
+);
+$checkOverlapStmt->bind_param('iss', $venueId, $eventDate, $eventTime);
+$checkOverlapStmt->execute();
+$overlapResult = $checkOverlapStmt->get_result()->fetch_assoc();
+$checkOverlapStmt->close();
+
+if ($overlapResult) {
+    // Blocks execution and triggers a clean, user-friendly English browser pop-up alert
+    echo "<script>
+            alert('🚨 Slot Already Reserved!\\n\\nWe are sorry, but the venue schedule you selected has already been booked and confirmed by another user.\\n\\nPlease select a different date or time slot. Thank you!');
+            window.location.href = 'search.php';
+          </script>";
+    exit();
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // ── Resolve addon prices from DB ─────────────────────────────────────────────
 $addonPriceMap = [];
 if (!empty($addons)) {
@@ -150,11 +175,6 @@ if (!$stmt->execute()) {
 $bookingId = (int) $conn->insert_id;
 $stmt->close();
 
-// NOTE: Do NOT create a payment record here. Payment records should be created
-// only when the user proceeds to the payment step (checkout/payment), so that
-// bookings left in cart are not prematurely marked with a payment method.
-
-
 // ── Insert booking_addons ─────────────────────────────────────────────────────
 if (!empty($addonPriceMap)) {
     $stmt = $conn->prepare(
@@ -174,6 +194,9 @@ if (!empty($addonPriceMap)) {
 
 // ── Mirror to session cart for cart.php display ───────────────────────────────
 if (!isset($_SESSION['cart'])) $_SESSION['cart'] = [];
+
+$eventType = $eventName ?? $eventInput;
+
 $_SESSION['cart'][] = [
     'booking_id'  => $bookingId,
     'cart_id'     => $cartId,
@@ -185,7 +208,7 @@ $_SESSION['cart'][] = [
     'event_date'  => $eventDate,
     'event_time'  => $eventTime,
     'duration'    => $durationRaw,
-    'guests'      => $guestCount,
+    'guests'      => (int) $guestCount,
     'addons'      => $addons,
     'total_price' => $totalPrice,
 ];

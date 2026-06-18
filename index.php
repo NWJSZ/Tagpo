@@ -237,6 +237,7 @@ if (!empty($location)) {
         </div>
       <?php endforeach; ?>
     </div>
+    
 
 <!-- Features Strip — Upgraded to Premium Bootstrap Icons with Sharp Editorial Corners -->
 <div id="features" class="feature-strip rounded-0 mb-5" style="background-color: #ffffff; border: 1px solid rgba(13, 35, 29, 0.08);">

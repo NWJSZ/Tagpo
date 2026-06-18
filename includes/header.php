@@ -76,7 +76,7 @@ $currentUser = getCurrentUser();
             </a>
             <ul class="dropdown-menu">
               <li><a class="dropdown-item" href="<?php echo $baseUrl; ?>admin/dashboard.php">Dashboard</a></li>
-              <li><a class="dropdown-item" href="<?php echo $baseUrl; ?>admin/booking_report.php">View Booking Report</a></li>
+              <li><a class="dropdown-item" href="<?php echo $baseUrl; ?>admin/booking_dashboard.php">View Booking Report</a></li>
               <li><a class="dropdown-item" href="<?php echo $baseUrl; ?>admin/manage-bookings.php">View All Bookings</a></li>
             </ul>
           </li>

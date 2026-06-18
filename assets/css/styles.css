@@ -16,7 +16,7 @@ h1, h2, h3, h4, h5, h6 { font-family: 'Playfair Display', serif; line-height: 1.
 a { transition: color var(--transition); }
 
 /* ── NAVBAR ── */
-.navbar { background: #fff !important; border-bottom: 1px solid var(--border); padding: 0; height: 64px; position: sticky; top: 0; z-index: 1050 !important; box-shadow: none; }
+.navbar { background: #fff !important; border-bottom: 1px solid var(--border); padding: 0; min-height: 64px; position: sticky; top: 0; z-index: 1050 !important; box-shadow: none; }
 .navbar-brand { font-family: 'Playfair Display', serif !important; font-size: 1.3rem !important; font-weight: 700 !important; color: var(--deep) !important; letter-spacing: -0.5px; }
 .navbar-brand .brand-accent { color: var(--gold); }
 .nav-link { font-family: 'DM Sans', sans-serif; font-weight: 500 !important; font-size: 0.9rem !important; color: var(--muted) !important; padding: 8px 14px !important; border-radius: var(--radius-sm); transition: color var(--transition), background var(--transition); }
@@ -137,11 +137,122 @@ footer .footer-bottom { font-size: 0.8rem; color: #64748b; padding-bottom: 28px;
 .fade-up-3 { animation: fadeUp 0.5s 0.3s ease both; }
 
 /* ── RESPONSIVE ── */
+@media (max-width: 991.98px) {
+
+  /* NAVBAR: solid white panel when collapsed */
+  #mainNav {
+    background: #ffffff;
+    border-top: 1px solid var(--border);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+    margin-left:  calc(-1 * var(--bs-gutter-x, 0.75rem) - 12px);
+    margin-right: calc(-1 * var(--bs-gutter-x, 0.75rem) - 12px);
+    padding: 8px 24px 16px;
+  }
+
+  /* Nav links: full-width tap targets */
+  #mainNav .nav-link {
+    padding: 10px 14px !important;
+    border-radius: var(--radius-sm);
+    display: block;
+  }
+
+  /* CART BADGE: reset Bootstrap's translate-middle positioning.
+     On mobile the nav-link is full-width so start-100 flies off
+     to the far right. Pin it close to the text instead. */
+  #mainNav .nav-link .cart-badge {
+    position: static !important;
+    transform: none !important;
+    display: inline-flex !important;
+    vertical-align: middle;
+    margin-left: 6px;
+    top: auto !important;
+    left: auto !important;
+  }
+
+  /* AUTH BLOCK: stack vertically, separator line, full width */
+  #mainNav .d-flex.align-items-center {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 8px !important;
+    margin-top: 8px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    width: 100%;
+  }
+
+  /* GREETING: move it to the top of the auth block visually
+     using order, and always show it (Bootstrap hides it on mobile) */
+  #mainNav .fw-semibold.d-none.d-md-inline {
+    display: block !important;
+    order: -1;
+    font-size: 0.88rem;
+    color: var(--muted);
+    padding: 0 4px;
+  }
+
+  /* Buttons: full width, easy tap targets */
+  #mainNav .d-flex.align-items-center .btn,
+  #mainNav .d-flex.align-items-center .btn-book,
+  #mainNav .d-flex.align-items-center a.text-decoration-none {
+    width: 100%;
+    text-align: center;
+    display: block;
+    box-sizing: border-box;
+  }
+
+  /* Admin dropdown: static inside collapse */
+  #mainNav .dropdown-menu {
+    position: static !important;
+    float: none;
+    box-shadow: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-top: 4px;
+    background: var(--bg);
+  }
+}
+
 @media (max-width: 768px) {
-  .hero-bg { padding: 60px 0 100px; }
-  .search-container { margin-top: -48px; }
-  .search-card { border-radius: var(--radius) !important; }
+
+  /* NAVBAR: fix height clipping the open collapse */
+  .navbar { min-height: 64px; height: auto !important; }
   .navbar-brand { font-size: 1.1rem !important; }
+
+  /* HERO: side padding so text never hits screen edge */
+  .hero-bg { padding: 64px 24px 104px; }
+  .hero-bg h1 br { display: none; }
+
+  /* SEARCH CARD: prevent clipping at viewport edges */
+  .search-container { margin-top: -44px; padding-left: 16px; padding-right: 16px; }
+  .search-card { border-radius: var(--radius) !important; padding: 20px 16px !important; }
+
+  /* FEATURED VENUES HEADER ROW: stack heading + button */
+  .d-flex.justify-content-between.align-items-end.mb-4 {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 10px;
+  }
+
+  /* FEATURE STRIP: tighter 2×2 layout */
+  .feature-strip { margin: 40px 0; }
+  .feature-strip .col-6:nth-child(odd) .feature-item { border-left: none !important; }
+  .feature-strip .feature-item { padding: 20px 10px !important; }
+
+  /* ABOUT: fix floating image overflow */
+  .about-section { padding: 64px 0; }
+  .about-image-wrap { padding: 16px 16px 80px; overflow: visible; }
+  .about-img-large { height: 280px !important; }
+  .about-img-small {
+    width: 160px !important;
+    height: 130px !important;
+    right: 8px !important;
+    bottom: 0 !important;
+  }
+  .about-content { padding-left: 16px; padding-right: 16px; padding-top: 24px; }
+  .about-content .btn-book { display: block; text-align: center; margin-top: 32px; }
+
+  /* FOOTER */
+  footer { margin-top: 48px; }
 }
 
 /* ============================================================
