@@ -455,6 +455,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
     .invalid-feedback-inline.active {
       display: block;
     }
+    /* Simple Terms Container styling */
+    .terms-container {
+      max-height: 120px;
+      overflow-y: auto;
+      background-color: #f8f9fa;
+      border: 1px solid #dee2e6;
+      padding: 10px;
+      font-size: 0.85rem;
+      color: #6c757d;
+      margin-bottom: 15px;
+      border-radius: 4px;
+    }
   </style>
 </head>
 <body>
@@ -475,7 +487,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
 <main class="container my-5">
   <div class="row g-5">
 
-    <!-- LEFT: Booking Summary -->
     <div class="col-lg-6">
       <div class="card p-4 shadow-sm border-0">
         <h4 class="fw-bold mb-4">Booking Summary</h4>
@@ -504,14 +515,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
       </div>
     </div>
 
-    <!-- RIGHT: Checkout Form -->
     <div class="col-lg-6">
       <div class="card p-4 shadow-sm">
         <h3 class="mb-4">Checkout</h3>
 
         <form method="POST" id="payment-checkout-form">
 
-          <!-- Pass cart state back through the form -->
           <?php if (!empty($_POST['selected_items'])): ?>
             <?php foreach ((array)$_POST['selected_items'] as $idx): ?>
               <input type="hidden" name="selected_indices[]" value="<?= (int)$idx ?>">
@@ -522,7 +531,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
             <input type="hidden" name="cart_ids[]" value="<?= (int)$bid ?>">
           <?php endforeach; ?>
 
-          <!-- Carry booking details for receipt -->
           <input type="hidden" name="form_venue_name"  value="<?= htmlspecialchars($venueName) ?>">
           <input type="hidden" name="form_event_id"    value="<?= htmlspecialchars($eventType) ?>">
           <input type="hidden" name="form_event_name"  value="<?= htmlspecialchars($eventName) ?>">
@@ -567,14 +575,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
           <div class="mb-3">
             <label class="form-label">Payment Method</label>
             <select name="method" id="method_select" class="form-select"
-                    onchange="updatePaymentFields()" required>
+                   onchange="updatePaymentFields()" required>
               <option value="" selected disabled>-- Select Payment Method --</option>
               <option value="card">Credit / Debit Card</option>
               <option value="gcash">GCash</option>
             </select>
           </div>
 
-          <!-- Card fields -->
           <div id="card_section" class="payment-section" style="display:none;">
             <div class="mb-3">
               <label class="form-label">Card Number</label>
@@ -596,7 +603,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
             </div>
           </div>
 
-          <!-- GCash fields -->
           <div id="gcash_section" class="payment-section" style="display:none;">
             <div class="alert alert-info d-flex align-items-start gap-2 mb-3" role="alert">
               <i class="bi bi-info-circle-fill mt-1"></i>
@@ -608,7 +614,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
 
             <div class="mb-3">
               <label class="form-label">Send Payment To</label>
-              <select class="form-select" id="gcash_account_select" onchange="fillGcashAccount(this)" required>
+              <select class="form-select" id="gcash_account_select" onchange="fillGcashAccount(this)">
                 <option value="" disabled selected>-- Select Admin GCash Account --</option>
                 <option value="09686347062|Jen Mae Ilao">09686347062 — Jen Mae Ilao</option>
                 <option value="09053731204|Natalie Paduhilao">09053731204 — Natalie Paduhilao</option>
@@ -632,11 +638,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
             </div>
           </div>
 
-          <button type="submit" name="pay_now" class="btn btn-primary w-100 py-3 fw-bold mt-2">
+          <div class="mt-4 mb-3">
+            <label class="form-label fw-bold">Terms & Conditions</label>
+            <div class="terms-container">
+              <h6>1. Booking and Reservations</h6>
+              <p>All bookings made through TAGPO are subject to venue availability and final confirmation from the administrator.</p>
+              <h6>2. Cancellation and Refunds</h6>
+              <p>Cancellations made 7 days prior to the event are eligible for a partial refund. Late cancellations may incur a forfeiture fee.</p>
+              <h6>3. Payment Terms</h6>
+              <p>Card payments are processed instantly. GCash payments require manual verification by an administrator before the booking is fully confirmed.</p>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="terms_checkbox">
+              <label class="form-check-label small text-muted" for="terms_checkbox" style="cursor: pointer; user-select: none;">
+                I have read and agree to the TAGPO Terms & Conditions.
+              </label>
+            </div>
+          </div>
+
+          <button type="submit" name="pay_now" id="pay_button" class="btn btn-primary w-100 py-3 fw-bold mt-2" disabled style="opacity: 0.6; cursor: not-allowed; transition: all 0.2s ease;">
             Pay ₱<?= number_format($total) ?> Now
           </button>
         </form>
-      </div>
     </div>
 
   </div>
@@ -659,11 +682,35 @@ function updatePaymentFields() {
   document.getElementById('card_section').style.display  = method === 'card'  ? 'block' : 'none';
   document.getElementById('gcash_section').style.display = method === 'gcash' ? 'block' : 'none';
   
+  const gcashSelect = document.getElementById('gcash_account_select');
   if (method !== 'gcash') {
-    document.getElementById('gcash_account_select').value = '';
+    if(gcashSelect) gcashSelect.value = '';
     document.getElementById('gcash_account_display').style.display = 'none';
+    if(gcashSelect) gcashSelect.removeAttribute('required');
+  } else {
+    if(gcashSelect) gcashSelect.setAttribute('required', 'required');
   }
 }
+
+// --- TERMS & CONDITIONS DISABLE/ENABLE LOGIC ---
+  const termsCheckbox = document.getElementById('terms_checkbox');
+  const payButton = document.getElementById('pay_button');
+
+  if (termsCheckbox && payButton) {
+    termsCheckbox.addEventListener('change', function () {
+      if (this.checked) {
+        // Kapag naka-tsek: Active at normal na hitsura
+        payButton.disabled = false;
+        payButton.style.opacity = "1";
+        payButton.style.cursor = "pointer";
+      } else {
+        // Kapag tinanggal ang tsek: Naka-lock at malabo uli
+        payButton.disabled = true;
+        payButton.style.opacity = "0.6";
+        payButton.style.cursor = "not-allowed";
+      }
+    });
+  }
 
 document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('phone_input').addEventListener('input', function () {
@@ -764,6 +811,7 @@ document.addEventListener('DOMContentLoaded', function () {
       }
       if (cvvInput.value.length !== 3) { e.preventDefault(); alert('CVV must be 3 digits.'); return; }
     }
+    
     if (method === 'gcash') {
       const gcashAccountSelect = document.getElementById('gcash_account_select');
       if (!gcashAccountSelect.value) {
@@ -776,6 +824,16 @@ document.addEventListener('DOMContentLoaded', function () {
       const g = gcashInput.value.replace(/\D/g, '');
       if (g.length !== 11) { e.preventDefault(); alert('GCash number must be 11 digits.'); return; }
     }
+
+    // EXTRA SECURITY VALIDATION FOR TERMS CHECKBOX
+    const termsCheck = document.getElementById('terms_checkbox');
+    if (!termsCheck.checked) {
+      e.preventDefault();
+      alert('You must agree to the Terms & Conditions before proceeding.');
+      termsCheck.focus();
+      return;
+    }
+    
   });
 });
 </script>
