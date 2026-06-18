@@ -22,13 +22,21 @@ function getDisplayBookingCode($row): string {
 
 function statusBadgeClass(string $status): string {
     return match($status) {
-        'confirmed' => 'badge-confirmed',
-        'pending'   => 'badge-pending',
-        'cancelled' => 'badge-cancelled',
-        'paid'      => 'badge-paid',
-        'failed'    => 'badge-failed',
-        'refunded'  => 'badge-refunded',
-        default     => 'badge-inactive',
+        'confirmed'          => 'badge-confirmed',
+        'pending'            => 'badge-pending',
+        'awaiting_confirmation' => 'badge-pending',
+        'cancelled'          => 'badge-cancelled',
+        'paid'               => 'badge-paid',
+        'failed'             => 'badge-failed',
+        'refunded'           => 'badge-refunded',
+        default              => 'badge-inactive',
+    };
+}
+
+function displayStatusLabel(string $status): string {
+    return match ($status) {
+        'pending', 'awaiting_confirmation' => 'Pending',
+        default => ucwords(str_replace('_', ' ', $status)),
     };
 }
 
@@ -53,7 +61,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['boo
             $stmt->bind_param('i', $cartId);
             $stmt->execute();
             $stmt->close();
-            $flash = 'Payment approved successfully.';
+
+            $stmt = $conn->prepare("UPDATE bookings SET status = 'confirmed' WHERE booking_id = ?");
+            $stmt->bind_param('i', $bookingId);
+            $stmt->execute();
+            $stmt->close();
+
+            $flash = 'Payment approved and booking confirmed successfully.';
         } elseif ($action === 'reject_payment') {
             $stmt = $conn->prepare("UPDATE payments SET payment_status = 'failed' WHERE cart_id = ?");
             $stmt->bind_param('i', $cartId);
@@ -340,9 +354,10 @@ $calHours = range(8, 20);
             <?php if ($search !== ''): ?><input type="hidden" name="q" value="<?= htmlspecialchars($search) ?>"><?php endif; ?>
             <select name="status" class="filter-select" onchange="this.form.submit()">
               <option value="">All Statuses</option>
-              <option value="pending"   <?= $statusFilter==='pending'   ? 'selected' : '' ?>>Pending</option>
-              <option value="confirmed" <?= $statusFilter==='confirmed' ? 'selected' : '' ?>>Confirmed</option>
-              <option value="cancelled" <?= $statusFilter==='cancelled' ? 'selected' : '' ?>>Cancelled</option>
+              <option value="pending"               <?= $statusFilter==='pending'               ? 'selected' : '' ?>>Pending</option>
+              <option value="awaiting_confirmation" <?= $statusFilter==='awaiting_confirmation' ? 'selected' : '' ?>>Awaiting Confirmation</option>
+              <option value="confirmed"             <?= $statusFilter==='confirmed'             ? 'selected' : '' ?>>Confirmed</option>
+              <option value="cancelled"             <?= $statusFilter==='cancelled'             ? 'selected' : '' ?>>Cancelled</option>
             </select>
           </form>
         </div>
@@ -393,10 +408,10 @@ $calHours = range(8, 20);
                     data-name="<?= htmlspecialchars($b['first_name'] . ' ' . $b['last_name'], ENT_QUOTES) ?>"
                     data-email="<?= htmlspecialchars($b['email'], ENT_QUOTES) ?>"
                     data-status="<?= htmlspecialchars($b['booking_status']) ?>"
-                    data-status-label="<?= htmlspecialchars(ucfirst($b['booking_status'])) ?>"
+                    data-status-label="<?= htmlspecialchars(displayStatusLabel($b['booking_status'])) ?>"
                     data-status-class="<?= statusBadgeClass($b['booking_status']) ?>"
                     data-pay-status="<?= htmlspecialchars($b['payment_status'] ?? 'none') ?>"
-                    data-pay-status-label="<?= htmlspecialchars($b['payment_status'] ? ucfirst($b['payment_status']) : 'No payment record') ?>"
+                    data-pay-status-label="<?= htmlspecialchars($b['payment_status'] ? displayStatusLabel($b['payment_status']) : 'No payment record') ?>"
                     data-pay-status-class="<?= statusBadgeClass($b['payment_status'] ?? '') ?>"
                     data-pay-method="<?= htmlspecialchars($b['payment_method'] ? ucwords(str_replace('_',' ',$b['payment_method'])) : 'N/A') ?>"
                     data-txid="<?= htmlspecialchars($b['transaction_id'] ?? 'N/A') ?>"
@@ -417,7 +432,7 @@ $calHours = range(8, 20);
                     <?= htmlspecialchars(date('M j, Y', strtotime($b['event_date']))) ?>
                     <div class="text-muted-sm"><?= htmlspecialchars(date('g:i A', strtotime($b['event_time']))) ?></div>
                   </td>
-                  <td><span class="badge-status <?= statusBadgeClass($b['booking_status']) ?>"><?= htmlspecialchars(ucfirst($b['booking_status'])) ?></span></td>
+                  <td><span class="badge-status <?= statusBadgeClass($b['booking_status']) ?>"><?= htmlspecialchars(displayStatusLabel($b['booking_status'])) ?></span></td>
                   <td>
                     <?php if ($b['payment_status']): ?>
                       <span class="badge-status <?= statusBadgeClass($b['payment_status']) ?>"><?= htmlspecialchars(ucfirst($b['payment_status'])) ?></span>

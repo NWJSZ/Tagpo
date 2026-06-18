@@ -205,9 +205,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['pay_now'])) {
         default => 'Credit Card',
     };
 
-    // Card = paid immediately; GCash = awaiting admin confirmation
-    $paymentStatus = ($method === 'card') ? 'paid'                  : 'pending';
-    $bookingStatus = ($method === 'card') ? 'confirmed'             : 'awaiting_confirmation';
+    // Card = paid immediately; GCash = pending until admin confirmation
+    $paymentStatus = ($method === 'card') ? 'paid'   : 'pending';
+    $bookingStatus = ($method === 'card') ? 'confirmed' : 'pending';
 
     $transactionId = strtoupper(uniqid('TXN-'));
 
