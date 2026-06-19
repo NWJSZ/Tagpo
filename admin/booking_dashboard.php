@@ -138,15 +138,10 @@ $currentPage = 'reports'; // Flag para sa sidebar navigation active highlight st
     
 <style>
         /* =========================================================================
-           1. SCREEN LAYOUT ACCENTS (Iwas Overlap sa Likod ng Sidebar)
+           1. SCREEN LAYOUT ACCENTS
+           Gamit na ngayon ang shared .admin-main (kasabay ng ibang admin pages)
+           para sumunod ito sa parehong sidebar/hamburger toggle logic sa mobile.
            ========================================================================= */
-        .main-content {
-            margin-left: 260px !important; /* Itutulak pakanan ang data para hindi matakpan ng sidebar */
-            width: calc(100% - 260px) !important;
-            position: relative;
-            z-index: 1;
-            min-height: 100vh;
-        }
 
         /* =========================================================================
            2. DATA BLOCK STYLING (Crystal Report Table Accents)
@@ -177,6 +172,67 @@ $currentPage = 'reports'; // Flag para sa sidebar navigation active highlight st
         .badge-cancelled, .badge-failed { background-color: #fef2f2; color: #b91c1c; }
         .badge-refunded { background-color: #f3e5f5; color: #6a1b9a; }
 
+        /* Summary card: fixed width on desktop, full width on mobile */
+        .crystal-summary-card {
+            width: 420px;
+        }
+
+        /* =========================================================================
+           4. MOBILE RESPONSIVE FIXES (Crystal Report)
+           ========================================================================= */
+        @media (max-width: 991.98px) {
+            .crystal-summary-card { width: 100%; }
+
+            /* No topbar on this page, so reserve space for the floating hamburger button */
+            .admin-content { padding-top: 60px; }
+
+            /* Report type switch buttons: wrap and shrink a bit */
+            .report-type-switch .btn {
+                font-size: 12px;
+                padding: 6px 10px;
+            }
+
+            /* Data table: scroll horizontally, keep columns readable */
+            .table-responsive {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            .table-responsive table {
+                min-width: 720px;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            /* Page header: stack title and print button */
+            .crystal-page-header {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: 10px;
+            }
+            .crystal-page-header .text-end {
+                width: 100%;
+            }
+            .crystal-page-header .btn {
+                width: 100%;
+            }
+
+            /* Filter form: one column on small phones */
+            .crystal-filter-form .col-lg-3 {
+                flex: 0 0 100%;
+                max-width: 100%;
+            }
+
+            .crystal-page-header h3 { font-size: 17px; }
+
+            /* Scope bar: stack label and date range */
+            .crystal-scope-bar {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: 6px;
+            }
+            .crystal-scope-bar .text-end { text-align: left !important; }
+        }
+
         /* =========================================================================
            3. PROFESSIONAL PRINT MECHANICS (Mismong mga Data lang ang lalabas)
            ========================================================================= */
@@ -200,7 +256,7 @@ $currentPage = 'reports'; // Flag para sa sidebar navigation active highlight st
                 color: #000 !important; 
             }
             
-            .main-content { 
+            .admin-main { 
                 margin-left: 0 !important; 
                 padding: 0 !important; 
                 width: 100% !important; 
@@ -219,10 +275,10 @@ $currentPage = 'reports'; // Flag para sa sidebar navigation active highlight st
 
 <?php include 'includes/admin_sidebar.php'; ?>
 
-<main class="main-content">
-    <div class="container-fluid px-4 py-4">
+<main class="admin-main">
+    <div class="admin-content">
 
-        <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+        <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3 crystal-page-header">
             <div>
                 <h3 class="fw-bold text-uppercase m-0">Tagpo Crystal Reports Management</h3>
                 <p class="text-muted m-0 mt-1" style="font-size: 13px;">Analytical Business Intelligence Ledger &bull; Grouped Report Outputs</p>
@@ -234,7 +290,7 @@ $currentPage = 'reports'; // Flag para sa sidebar navigation active highlight st
             </div>
         </div>
 
-        <div class="d-flex flex-wrap gap-2 mb-3 no-print">
+        <div class="d-flex flex-wrap gap-2 mb-3 no-print report-type-switch">
             <a href="?report_type=booking&start_date=<?= $start_date ?>&end_date=<?= $end_date ?>&filter_status=<?= $filter_status ?>" class="btn btn-outline-secondary btn-sm <?= $report_type === 'booking' ? 'active btn-secondary text-white' : '' ?>">
                 <i class="bi bi-journal-bookmark me-1"></i> Booking Log Report
             </a>
@@ -251,7 +307,7 @@ $currentPage = 'reports'; // Flag para sa sidebar navigation active highlight st
 
         <div class="card border-0 shadow-sm mb-4 no-print">
             <div class="card-body p-3">
-                <form method="GET" action="" class="row g-3 align-items-end">
+                <form method="GET" action="" class="row g-3 align-items-end crystal-filter-form">
                     <input type="hidden" name="report_type" value="<?= htmlspecialchars($report_type) ?>">
 
                     <div class="col-lg-3 col-md-6">
@@ -290,7 +346,7 @@ $currentPage = 'reports'; // Flag para sa sidebar navigation active highlight st
             </div>
         </div>
 
-        <div class="mb-4 bg-white p-3 rounded shadow-sm border-start border-4 border-primary d-flex justify-content-between align-items-center">
+        <div class="mb-4 bg-white p-3 rounded shadow-sm border-start border-4 border-primary d-flex justify-content-between align-items-center crystal-scope-bar">
             <div>
                 <span class="fw-bold text-uppercase text-dark" style="font-size:14px;">
                     <?php
@@ -474,7 +530,7 @@ $currentPage = 'reports'; // Flag para sa sidebar navigation active highlight st
         </div>
 
         <div class="d-flex justify-content-end">
-            <div class="card border-0 shadow-sm bg-white rounded-3" style="width: 420px; border: 1px solid #dee2e6 !important;">
+            <div class="card border-0 shadow-sm bg-white rounded-3 crystal-summary-card" style="border: 1px solid #dee2e6 !important;">
                 <div class="card-body p-3" style="font-size: 13.5px;">
                     <div class="text-uppercase fw-bold text-muted small tracking-wider mb-3 pb-2 border-bottom">
                         Final Master Summary Calculations

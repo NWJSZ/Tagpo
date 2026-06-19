@@ -1,8 +1,8 @@
 <?php
 // Only load configs if not already loaded
 if (!function_exists('getBaseUrl')) {
-    require_once dirname(dirname(__FILE__)) . '/config/database.php';
-    require_once dirname(dirname(__FILE__)) . '/config/session_config.php';
+  require_once dirname(dirname(__FILE__)) . '/config/database.php';
+  require_once dirname(dirname(__FILE__)) . '/config/session_config.php';
 }
 
 $baseUrl     = isset($baseUrl) ? $baseUrl : getBaseUrl();
@@ -20,7 +20,16 @@ $currentUser = getCurrentUser();
       Tagpo<span class="text-primary">.</span>
     </a>
 
-    <!-- TOGGLER -->
+
+    <!-- TOGGLER + MOBILE GREETING (visible on mobile only, beside hamburger) -->
+    <div class="d-flex align-items-center gap-2 d-lg-none ms-auto me-2">
+      <?php if (isLoggedIn()): ?>
+        <span class="fw-semibold" style="font-size: 0.88rem; color: #374151;">
+          Hi, <?php echo htmlspecialchars($currentUser['first_name']); ?> 👋
+        </span>
+      <?php endif; ?>
+    </div>
+
     <button class="navbar-toggler border-0 shadow-none" type="button"
       data-bs-toggle="collapse" data-bs-target="#mainNav">
       <span class="navbar-toggler-icon"></span>
@@ -33,7 +42,7 @@ $currentUser = getCurrentUser();
 
         <li class="nav-item">
           <a class="nav-link <?php echo $current === 'index.php' ? 'fw-semibold text-dark' : ''; ?>"
-             href="<?php echo $baseUrl; ?>index.php">Home</a>
+            href="<?php echo $baseUrl; ?>index.php">Home</a>
         </li>
 
         <li class="nav-item">
@@ -47,7 +56,7 @@ $currentUser = getCurrentUser();
         <!-- Cart -->
         <li class="nav-item">
           <a class="nav-link position-relative <?php echo $current === 'cart.php' ? 'fw-semibold text-dark' : ''; ?>"
-             href="<?php echo $baseUrl; ?>cart.php">
+            href="<?php echo $baseUrl; ?>cart.php">
             Cart
             <?php if ($cartCount > 0): ?>
               <span class="cart-badge position-absolute top-0 start-100 translate-middle badge rounded-pill">
@@ -61,7 +70,7 @@ $currentUser = getCurrentUser();
         <?php if (isLoggedIn() && !$isAdmin): ?>
           <li class="nav-item">
             <a class="nav-link <?php echo $current === 'my_bookings.php' ? 'fw-semibold text-dark' : ''; ?>"
-               href="<?php echo $baseUrl; ?>my_bookings.php">
+              href="<?php echo $baseUrl; ?>my_bookings.php">
               My Bookings
             </a>
           </li>
@@ -71,7 +80,7 @@ $currentUser = getCurrentUser();
         <?php if ($isAdmin): ?>
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle text-danger fw-semibold" href="#"
-               role="button" data-bs-toggle="dropdown">
+              role="button" data-bs-toggle="dropdown">
               Admin
             </a>
             <ul class="dropdown-menu">
@@ -100,7 +109,7 @@ $currentUser = getCurrentUser();
         <?php else: ?>
 
           <a href="<?php echo $baseUrl; ?>auth/login.php"
-             class="text-decoration-none fw-semibold text-secondary">
+            class="text-decoration-none fw-semibold text-secondary">
             Log In
           </a>
 

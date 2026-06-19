@@ -827,6 +827,13 @@ body {
     gap: 10px;
   }
 
+  /* View tabs under page title (bookings page): full width, even split */
+  .page-header .view-tabs {
+    width: 100%;
+    display: flex;
+  }
+  .page-header .view-tabs .view-tab { flex: 1; text-align: center; }
+
   /* Panel card header: stack h2 + action btn */
   .panel-card-header {
     flex-direction: column;
@@ -834,9 +841,49 @@ body {
     gap: 8px;
   }
 
-  /* Calendar: scrollable */
-  .cal-grid     { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .cal-timeline { min-width: 480px; }
+  /* Top controls (events page): stack title + action buttons */
+  .top-controls {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+  .top-controls > div:last-child {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  /* Event card header (events page): stack name + action buttons */
+  .event-card-header {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 10px;
+  }
+
+  /* Calendar: venue column stays pinned, only the time grid scrolls */
+  .cal-grid {
+    grid-template-columns: 96px 1fr;
+  }
+  .cal-venue-cell { padding: 10px 8px; }
+  .cal-venue-img  { height: 40px; }
+  .cal-venue-name { font-size: 11px; }
+  .cal-venue-cap  { font-size: 10px; }
+  .cal-timeline {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .cal-timeline > * { min-width: 480px; }
+
+  /* Add-on tables (events page): tighten spacing so 3 columns fit comfortably */
+  .addon-table th, .addon-table td { padding: 8px 6px; font-size: 13px; }
+}
+
+@media (max-width: 575.98px) {
+  /* Archive vault side-by-side panels (events page): stack on phones */
+  .archive-section .row {
+    flex-direction: column;
+  }
+  .archive-section .row > div {
+    min-width: 100% !important;
+  }
 }
 
 @media (max-width: 767px) {

@@ -183,7 +183,7 @@ footer .footer-bottom { font-size: 0.8rem; color: #64748b; padding-bottom: 28px;
   /* GREETING: move it to the top of the auth block visually
      using order, and always show it (Bootstrap hides it on mobile) */
   #mainNav .fw-semibold.d-none.d-md-inline {
-    display: block !important;
+  display: none !important; /* nakatago na sa mobile — nasa tabi ng hamburger na */
     order: -1;
     font-size: 0.88rem;
     color: var(--muted);
