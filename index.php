@@ -333,7 +333,7 @@ if (!empty($location)) {
               </div>
             </div>
 
-            <a href="#" class="btn-book mt-5">
+            <a href="info.php" class="btn-book mt-5">
               Learn More About Us <i class="bi bi-arrow-right ms-2"></i>
             </a>
           </div>
