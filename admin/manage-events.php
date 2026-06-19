@@ -310,10 +310,20 @@ $archived_addons = $conn->query("
             <h2>
               <i class="bi bi-stars"></i> <?= htmlspecialchars($e['event_name']) ?>
             </h2>
-            <div class="d-flex gap-2">
+            <div class="d-flex gap-2 event-actions-wrapper">
               <button class="btn-action btn-outline-green" style="font-size:12px; padding: 5px 12px;" onclick="openAddonDrawer('add', null, null, null, <?= $e['event_id'] ?>)"><i class="bi bi-plus-lg"></i> Add Add-on</button>
-              <button class="icon-btn" onclick="openEventDrawer('edit', <?= $e['event_id'] ?>, '<?= htmlspecialchars($e['event_name'], ENT_QUOTES) ?>')"><i class="bi bi-pencil"></i></button>
-              <button class="icon-btn" style="color:var(--danger);" onclick="openDeleteEvent(<?= $e['event_id'] ?>)"><i class="bi bi-trash"></i></button>
+
+              <div class="event-actions-desktop d-flex gap-2">
+                <button class="icon-btn" onclick="openEventDrawer('edit', <?= $e['event_id'] ?>, '<?= htmlspecialchars($e['event_name'], ENT_QUOTES) ?>')"><i class="bi bi-pencil"></i></button>
+                <button class="icon-btn" style="color:var(--danger);" onclick="openDeleteEvent(<?= $e['event_id'] ?>)"><i class="bi bi-trash"></i></button>
+              </div>
+
+              <div class="event-actions-mobile" style="display:none; width:100%;">
+                <div style="display:flex; gap:8px; justify-content:flex-end;">
+                  <button class="btn-action btn-outline-green" style="padding:8px 10px; font-size:14px;" onclick="openEventDrawer('edit', <?= $e['event_id'] ?>, '<?= htmlspecialchars($e['event_name'], ENT_QUOTES) ?>')"><i class="bi bi-pencil"></i> Edit</button>
+                  <button class="btn-action" style="padding:8px 10px; font-size:14px; color:var(--danger); border:1px solid rgba(220,53,69,.12);" onclick="openDeleteEvent(<?= $e['event_id'] ?>)"><i class="bi bi-trash"></i> Delete</button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -339,9 +349,13 @@ $archived_addons = $conn->query("
                     <td class="fw-500 text-dark" style="width: 60%;"><?= htmlspecialchars($a['addon_name']) ?></td>
                     <td><span class="badge-status badge-active">₱<?= number_format($a['price'], 2) ?></span></td>
                     <td style="text-align:right; padding-right: 15px;">
-                      <div class="d-flex gap-2 justify-content-end">
+                      <div class="addon-actions-desktop d-flex gap-2 justify-content-end">
                         <button class="icon-btn" onclick="openAddonDrawer('edit', <?= $a['addon_id'] ?>, '<?= htmlspecialchars($a['addon_name'], ENT_QUOTES) ?>', <?= $a['price'] ?>, <?= $a['event_id'] ?>)"><i class="bi bi-pencil-square"></i></button>
                         <button class="icon-btn" style="color:var(--danger);" onclick="openDeleteAddon(<?= $a['addon_id'] ?>)"><i class="bi bi-trash"></i></button>
+                      </div>
+                      <div class="addon-actions-mobile" style="display:none;">
+                        <button class="btn-action btn-outline-green" style="padding:8px 10px; font-size:14px; margin-bottom:6px; width:48%;" onclick="openAddonDrawer('edit', <?= $a['addon_id'] ?>, '<?= htmlspecialchars($a['addon_name'], ENT_QUOTES) ?>', <?= $a['price'] ?>, <?= $a['event_id'] ?>)"><i class="bi bi-pencil-square"></i> Edit</button>
+                        <button class="btn-action" style="padding:8px 10px; font-size:14px; margin-bottom:6px; width:48%; color:var(--danger); border:1px solid rgba(220,53,69,.12);" onclick="openDeleteAddon(<?= $a['addon_id'] ?>)"><i class="bi bi-trash"></i> Delete</button>
                       </div>
                     </td>
                   </tr>

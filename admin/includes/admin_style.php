@@ -294,7 +294,9 @@ body {
   color: var(--muted);
   background: var(--bg);
   border-bottom: 1px solid var(--border);
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 .data-table tbody tr {
   border-bottom: 1px solid var(--border);
@@ -308,6 +310,8 @@ body {
   padding: 13px 16px;
   font-size: 13.5px;
   vertical-align: middle;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 /* ── Badges ─────────────────────────────── */
@@ -806,6 +810,16 @@ body {
   /* Tables: scroll horizontally instead of squishing */
   .panel-card { overflow: visible; }
   .data-table  { min-width: 620px; }
+  .data-table thead th {
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+  .data-table td {
+    word-break: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
   .panel-card > .data-table,
   .panel-card > div > .data-table {
     display: block;
@@ -872,8 +886,21 @@ body {
   }
   .cal-timeline > * { min-width: 480px; }
 
-  /* Add-on tables (events page): tighten spacing so 3 columns fit comfortably */
-  .addon-table th, .addon-table td { padding: 8px 6px; font-size: 13px; }
+  /* Add-on tables (events page): default spacing restored for readability */
+  .addon-table th {
+    padding: 11px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .addon-table td {
+    padding: 13px 16px;
+    font-size: 13.5px;
+    vertical-align: middle;
+  }
 }
 
 @media (max-width: 575.98px) {
@@ -886,7 +913,7 @@ body {
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 768px) {
   .admin-content { padding: 16px 12px 24px; }
   .admin-topbar  { padding: 0 12px 0 56px; }
   .topbar-title  { font-size: 15px; }
@@ -895,10 +922,138 @@ body {
   .stat-icon     { width: 40px; height: 40px; font-size: 17px; }
   .stat-card     { padding: 14px; gap: 12px; }
 
+  /* Mobile-only layout adjustments (phones) --------------------------------- */
+  /* Use column stacking for tight rows/grids and prevent horizontal scroll */
+  .row, .d-flex, .flex-row, .page-header.d-flex, .filter-toolbar .row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px;
+  }
+  /* Make column helpers full-width on mobile */
+  [class*="col-"] {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* Touch-friendly form controls and buttons */
+  .btn, button, .icon-btn, input[type="button"], input[type="submit"] {
+    min-height: 44px;
+    padding: 10px 14px;
+    font-size: 16px;
+    border-radius: 8px;
+    touch-action: manipulation;
+  }
+  input[type="text"], input[type="email"], input[type="number"], select, textarea {
+    min-height: 44px;
+    padding: 10px 12px;
+    font-size: 16px;
+    box-sizing: border-box;
+  }
+
+  /* Tables: keep text readable and allow horizontal scrolling on phones */
+  /* Wrap the table in a scroll container instead of shrinking text */
+  .table-responsive-mobile {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 8px;
+    margin-bottom: 6px;
+  }
+  .panel-card > .data-table,
+  .panel-card > div > .data-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 8px;
+  }
+  /* Give tables a comfortable minimum width so columns stay legible */
+  .data-table {
+    min-width: 620px;
+    table-layout: fixed;
+    border-collapse: collapse;
+  }
+  /* Prevent text from shrinking or awkward wrapping; allow horizontal scroll */
+  .data-table thead th,
+  .data-table td {
+    white-space: nowrap !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* Keep header and cell fonts readable on phones */
+  .data-table thead th { padding: 10px 12px; font-size: 12px; }
+  .data-table td         { padding: 12px 12px; font-size: 13px; }
+
+  /* Reduce margins/padding for tight screens but keep taps comfortable */
+  .card, .panel-card { padding: 10px !important; }
+  .page-header { gap: 8px !important; }
+
+  /* Add-on action buttons: desktop icons hidden on mobile, show touch actions */
+  .addon-actions-desktop { display: block; }
+  .addon-actions-mobile { display: none; }
+  .addon-actions-mobile .btn-action { border-radius: 8px; }
+
+  @media (max-width: 480px) {
+    .addon-actions-desktop { display: none !important; }
+    .addon-actions-mobile { display: flex !important; gap: 8px; justify-content: flex-end; }
+    .addon-actions-mobile .btn-action { flex: 1 1 48%; min-height: 44px; }
+    .addon-table td { padding: 10px 8px; }
+  }
+
+  /* Event header actions: show full buttons on mobile, hide icon buttons */
+  .event-actions-desktop { display: block; }
+  .event-actions-mobile { display: none; }
+  @media (max-width: 480px) {
+    .event-actions-desktop { display: none !important; }
+    .event-actions-mobile { display: block !important; }
+    .event-actions-wrapper { width: 100%; }
+    .event-actions-mobile .btn-action { min-height: 44px; margin-left: 6px; }
+  }
+
+  /* Badge sizing for mobile */
+  .badge-status {
+    padding: 3px 8px;
+    font-size: 11px;
+  }
+
   .pagination-bar {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-content { padding: 12px 10px 20px; }
+
+  /* Extra tight padding for very small screens */
+  .data-table thead th {
+    padding: 6px 8px;
+    font-size: 9px;
+    word-break: break-word;
+  }
+  .data-table td {
+    padding: 8px 8px;
+    font-size: 11px;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
+  .data-table { min-width: 100%; }
+  .panel-card > .data-table,
+  .panel-card > div > .data-table {
+    min-width: 100%;
+  }
+
+  /* Badge sizing for very small screens */
+  .badge-status {
+    padding: 2px 6px;
+    font-size: 10px;
+  }
+
+  /* Reduced icon-button sizes */
+  .icon-btn {
+    padding: 4px 8px;
+    font-size: 12px;
   }
 }
 </style>
