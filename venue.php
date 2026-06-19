@@ -555,8 +555,12 @@ if ($addonsQuery) {
     <?php foreach ($dbAddons as $addon): ?>
       <div class="addon-group-item dynamic-addon" data-event="<?php echo htmlspecialchars($addon['event_name']); ?>" style="display: none;">
         <label>
-          <input type="checkbox" name="addons[]" value="<?php echo htmlspecialchars($addon['addon_name']); ?>"> 
-          <?php echo htmlspecialchars($addon['addon_name']); ?> (+₱<?php echo number_format($addon['price']); ?>)
+<input type="checkbox" 
+       name="addons[]" 
+       value="<?php echo (int)$addon['addon_id']; ?>"
+       data-price="<?php echo (float)$addon['price']; ?>">
+<?php echo htmlspecialchars($addon['addon_name']); ?> 
+(+₱<?php echo number_format($addon['price']); ?>)
         </label>
       </div>
     <?php endforeach; ?>

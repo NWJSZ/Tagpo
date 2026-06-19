@@ -144,8 +144,11 @@ footer .footer-bottom { font-size: 0.8rem; color: #64748b; padding-bottom: 28px;
     background: #ffffff;
     border-top: 1px solid var(--border);
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
-    margin-left:  calc(-1 * var(--bs-gutter-x, 0.75rem) - 12px);
-    margin-right: calc(-1 * var(--bs-gutter-x, 0.75rem) - 12px);
+    
+    /* 🛑 I comment out these two negative margins to ensure the padding works correctly! 🛑 */
+    /* margin-left:  calc(-1 * var(--bs-gutter-x, 0.75rem) - 12px); */
+    /* margin-right: calc(-1 * var(--bs-gutter-x, 0.75rem) - 12px); */
+    
     padding: 8px 24px 16px;
   }
 
@@ -157,8 +160,8 @@ footer .footer-bottom { font-size: 0.8rem; color: #64748b; padding-bottom: 28px;
   }
 
   /* CART BADGE: reset Bootstrap's translate-middle positioning.
-     On mobile the nav-link is full-width so start-100 flies off
-     to the far right. Pin it close to the text instead. */
+      On mobile the nav-link is full-width so start-100 flies off
+      to the far right. Pin it close to the text instead. */
   #mainNav .nav-link .cart-badge {
     position: static !important;
     transform: none !important;
@@ -181,7 +184,7 @@ footer .footer-bottom { font-size: 0.8rem; color: #64748b; padding-bottom: 28px;
   }
 
   /* GREETING: move it to the top of the auth block visually
-     using order, and always show it (Bootstrap hides it on mobile) */
+      using order, and always show it (Bootstrap hides it on mobile) */
   #mainNav .fw-semibold.d-none.d-md-inline {
   display: none !important; /* nakatago na sa mobile — nasa tabi ng hamburger na */
     order: -1;
@@ -216,7 +219,13 @@ footer .footer-bottom { font-size: 0.8rem; color: #64748b; padding-bottom: 28px;
 
   /* NAVBAR: fix height clipping the open collapse */
   .navbar { min-height: 64px; height: auto !important; }
-  .navbar-brand { font-size: 1.1rem !important; }
+  
+  /* ✅ ADDED THIS: Specific padding for the logo/brand element to push it away from the edge. ✅ */
+  .navbar-brand { 
+    font-size: 1.1rem !important;
+    padding-left: 25px; /* Adjust this value for the desired space from the left edge */
+    padding-right: 16px; /* Adjust if needed for space from the right */
+  }
 
   /* HERO: side padding so text never hits screen edge */
   .hero-bg { padding: 64px 24px 104px; }
