@@ -478,15 +478,115 @@ footer .footer-bottom { font-size: 0.8rem; color: #64748b; padding-bottom: 28px;
   .capacity-row { grid-template-columns: repeat(2, 1fr); }
 }
 
+/* ── AMENITIES & FEATURES GRID (desktop base) ───────────────────────────────
+   Walang nakalagay na base style dati so never displayed properly.
+   Desktop: 3 columns. Mobile override below: 2 columns.           */
+.amenities-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.amenity-item {
+  background: #f8f7f4;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 0.88rem;
+  color: #374151;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+/* ── VENUE BADGE INLINE ─────────────────────────────────────────────────────── */
+.venue-badge-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #fef3c7;
+  color: #92400e;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.venue-badge-inline.green { background: #d1fae5; color: #065f46; }
+/* ── REVIEWER STARS (right-align, no shrink) ────────────────────────────────── */
+.stars-sm {
+  color: #f59e0b;
+  font-size: 0.88rem;
+  margin-left: auto;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 @media (max-width: 600px) {
-  .main-wrap { padding: 20px 12px; gap: 16px; }
+  /* ── LAYOUT ── */
+  .main-wrap { padding: 20px 12px; gap: 0; }
   .tab-bar { padding: 0 12px; gap: 16px; }
   .gallery-grid { grid-template-columns: 1fr; grid-template-rows: auto; }
-  .amenities-grid { grid-template-columns: 1fr; }
-  .capacity-row { grid-template-columns: 1fr; }
-  .venue-title { font-size: 1.5rem; }
-  .booking-card { padding: 20px; top: auto; }
+
+  /* ── REORDER: booking form first, then reviews ─────────────────────────────
+     .main-wrap is a 2-col grid on desktop (content | booking-card).
+     On mobile it stacks. We want booking-card to appear BEFORE
+     the reviews/content section — use CSS order to achieve this
+     without touching the HTML.
+     The booking card is the 2nd child div of .main-wrap.              */
+  .main-wrap > div:first-child  { order: 2; } /* content (reviews, amenities) */
+  .main-wrap > div:last-child   { order: 1; } /* booking card → goes on top  */
+
+  /* ── BOOKING CARD ── */
+  .booking-card {
+    padding: 20px;
+    top: auto;
+    position: static;
+    margin-bottom: 28px;
+    border-radius: var(--radius);
+  }
+
+  /* ── VENUE TITLE & META ── */
+  .venue-title { font-size: 1.4rem; }
+  .venue-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .venue-badge-inline { font-size: 0.72rem; }
+
+  /* ── CAPACITY ROW: 2 cols instead of 3 (fits better on phone) ── */
+  .capacity-row { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .cap-card { padding: 14px 12px; }
+  .cap-value { font-size: 1rem; }
+
+  /* ── AMENITIES: 2 columns so it looks like a proper grid, not a list ── */
+  .amenities-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .amenity-item {
+    font-size: 0.82rem;
+    padding: 9px 10px;
+    border-radius: 8px;
+  }
+
+  /* ── FORM ── */
   .form-row { grid-template-columns: 1fr; }
+  .form-group label { font-size: 0.74rem; }
+
+  /* ── REVIEW CARD ── */
+  .reviewer {
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .stars-sm {
+    margin-left: 0;
+    width: 100%;
+    font-size: 0.82rem;
+  }
+  .review-text { font-size: 0.85rem; }
+
+  /* ── WHY CARD ── */
+  .why-card { padding: 16px; }
+  .why-list li { font-size: 0.86rem; }
 }
 
 #card_section { transition: all 0.3s ease; }

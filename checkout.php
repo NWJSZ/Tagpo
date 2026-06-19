@@ -13,17 +13,27 @@ if (empty($cart)) {
 
 // Use first item in cart to prefill payment page
 $item = reset($cart);
+
+// Collect all cart_ids from session cart para ma-pass sa payment.php
+$cartIds = [];
+foreach ($cart as $cartItem) {
+    if (!empty($cartItem['cart_id'])) {
+        $cartIds[] = (int) $cartItem['cart_id'];
+    }
+}
+
 $query = http_build_query([
-    'venue_id' => $item['venue_id'] ?? 1,
-    'venue_name' => $item['venue_name'] ?? '',
-    'venue_price' => $item['venue_price'] ?? 0,
-    'event_id' => $item['event_id'] ?? '',
-    'event_name' => $item['event_type'] ?? '',
-    'date' => $item['event_date'] ?? '',
-    'time' => $item['event_time'] ?? '',
-    'duration' => $item['duration'] ?? '',
-    'guests' => $item['guests'] ?? 0,
-    'name' => $item['guest_name'] ?? ''
+    'venue_id'   => $item['venue_id']    ?? 1,
+    'venue_name' => $item['venue_name']  ?? '',
+    'venue_price'=> $item['venue_price'] ?? 0,
+    'event_id'   => $item['event_id']    ?? '',
+    'event_name' => $item['event_type']  ?? '',
+    'date'       => $item['event_date']  ?? '',
+    'time'       => $item['event_time']  ?? '',
+    'duration'   => $item['duration']    ?? '',
+    'guests'     => $item['guests']      ?? 0,
+    'name'       => $item['guest_name']  ?? '',
+    'cart_ids'   => $cartIds,             // ← idinagdag: i-pass ang cart_ids
 ]);
 
 header('Location: payment.php?' . $query);

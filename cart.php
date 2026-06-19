@@ -38,16 +38,15 @@ if (isset($_GET['action']) && $_GET['action'] === 'remove' && isset($_GET['id'])
 
 $cart_items = [];
 
-// Look for active cart first; if none, check if there's a checked_out cart that still has pending bookings
+// Only show active carts with NO existing payment record.
+// Kapag checked_out na ang cart (kahit pending pa ang booking status = GCash scenario),
+// ibig sabihin naka-submit na ang payment — wag na ipakita sa cart.
 $stmt = $conn->prepare(
     "SELECT c.cart_id FROM carts c
      WHERE c.user_id = ?
-       AND (
-         c.status = 'active'
-         OR (c.status = 'checked_out' AND EXISTS (
-               SELECT 1 FROM bookings b
-               WHERE b.cart_id = c.cart_id AND b.status = 'pending'
-         ))
+       AND c.status = 'active'
+       AND NOT EXISTS (
+           SELECT 1 FROM payments p WHERE p.cart_id = c.cart_id
        )
      ORDER BY c.cart_id DESC LIMIT 1"
 );
