@@ -196,6 +196,33 @@ if ($addonsQuery) {
         opacity: 0;
       }
     }
+
+    /* Google Maps styling */
+    .map-controls {
+      margin-top: 15px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .map-controls a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 15px;
+      background: #f5f5f5;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      text-decoration: none;
+      color: #333;
+      font-size: 14px;
+      transition: all 0.3s ease;
+    }
+
+    .map-controls a:hover {
+      background: #e8e8e8;
+      border-color: #999;
+    }
   </style>
 </head>
 
@@ -349,10 +376,24 @@ if ($addonsQuery) {
 
         <div class="section" id="location">
           <div class="section-title">Location</div>
-          <div class="map-placeholder">
-            <span><?php echo htmlspecialchars($selected['location']); ?></span>
+          <iframe 
+            width="100%" 
+            height="400" 
+            style="border-radius: 12px; border: none; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);"
+            src="https://maps.google.com/maps?q=<?php echo urlencode($selected['location']); ?>&t=&z=15&ie=UTF8&iwloc=&output=embed" 
+            allowfullscreen="" 
+            loading="lazy" 
+            referrerpolicy="no-referrer-when-downgrade">
+          </iframe>
+          <p class="map-sub" style="margin-top: 15px;">📍 <?php echo htmlspecialchars($selected['location']); ?>, Philippines</p>
+          <div class="map-controls">
+            <a href="https://maps.google.com/?q=<?php echo urlencode($selected['location']); ?>" target="_blank" rel="noopener">
+              <i class="bi bi-google"></i> Open in Google Maps
+            </a>
+            <a href="https://www.google.com/maps/dir/<?php echo urlencode($selected['location']); ?>" target="_blank" rel="noopener">
+              <i class="bi bi-arrow-up-right"></i> Get Directions
+            </a>
           </div>
-          <p class="map-sub">📍 <?php echo htmlspecialchars($selected['location']); ?>, Philippines</p>
         </div>
 
         <div class="section" id="reviews">
