@@ -109,3 +109,25 @@ SELECT
 FROM venues v
 LEFT JOIN bookings b ON v.id = b.venue_id
 GROUP BY v.name;
+
+
+
+
+
+
+
+
+
+
+DROP TRIGGER IF EXISTS tg_addons_code;
+
+DELIMITER $$
+CREATE TRIGGER tg_addons_code BEFORE INSERT ON addons FOR EACH ROW 
+BEGIN
+    DECLARE next_id INT;
+    SELECT AUTO_INCREMENT INTO next_id
+    FROM information_schema.TABLES
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'addons';
+    SET NEW.addon_code = CONCAT('ADD-', LPAD(COALESCE(next_id, 1), 4, '0'));
+END$$
+DELIMITER ;

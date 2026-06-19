@@ -1,0 +1,26 @@
+2026-06-19 12:20:14
+METHOD: GET
+POST: Array
+(
+)
+
+
+2026-06-19 12:20:15
+METHOD: GET
+POST: Array
+(
+)
+
+
+2026-06-19 12:20:32
+METHOD: POST
+POST: Array
+(
+    [action] => add_addon
+    [addon_id] => 
+    [event_id] => 7
+    [addon_name] => nkn
+    [price] => 3783
+)
+
+
