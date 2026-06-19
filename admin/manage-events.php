@@ -1,13 +1,4 @@
 <?php
-// TEMP DEBUG — tanggalin pagkatapos
-file_put_contents(__DIR__ . '/debug_log.txt', 
-    date('Y-m-d H:i:s') . "\n" .
-    "METHOD: " . $_SERVER['REQUEST_METHOD'] . "\n" .
-    "POST: " . print_r($_POST, true) . "\n\n",
-    FILE_APPEND
-);
-?>
-<?php
 require_once dirname(__DIR__) . '/config/database.php';
 require_once dirname(__DIR__) . '/config/session_config.php';
 require_once dirname(__DIR__) . '/config/app.php';
