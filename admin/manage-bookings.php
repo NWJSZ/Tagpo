@@ -365,6 +365,7 @@ $calHours = range(8, 20);
         <?php if (empty($bookings)): ?>
           <div class="panel-card-body text-muted-sm">No bookings found.</div>
         <?php else: ?>
+          <div class="table-scroll">
           <table class="data-table">
             <thead>
               <tr>
@@ -444,6 +445,7 @@ $calHours = range(8, 20);
               <?php endforeach; ?>
             </tbody>
           </table>
+          </div>
         <?php endif; ?>
 
         <div class="pagination-bar">

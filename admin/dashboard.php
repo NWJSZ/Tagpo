@@ -129,6 +129,7 @@ function statusBadgeClass(string $status): string {
       <?php if (empty($recent)): ?>
         <div class="panel-card-body text-muted-sm">No bookings yet.</div>
       <?php else: ?>
+        <div class="table-scroll">
         <table class="data-table">
           <thead>
             <tr>
@@ -156,6 +157,7 @@ function statusBadgeClass(string $status): string {
             <?php endforeach; ?>
           </tbody>
         </table>
+        </div>
       <?php endif; ?>
     </div>
 
